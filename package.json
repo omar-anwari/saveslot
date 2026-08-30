@@ -7,7 +7,7 @@
     "pnpm": ">=11.24.0 <12.0.0"
   },
   "scripts": {
-    "dev": "pnpm dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -16,7 +16,9 @@
   "dependencies": {
     "next": "16.3.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "zod": "^4.5.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
