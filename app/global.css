@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --app-canvas: oklch(0.985 0.002 250);
+  --app-surface: oklch(1 0 0);
+  --app-line: oklch(0.9 0.004 250);
+  --app-ink: oklch(0.25 0.01 250);
+  --app-muted: oklch(0.53 0.012 250);
+  --app-accent: oklch(0.55 0.11 245);
+  --app-accent-contrast: oklch(0.99 0 0);
+  --app-warning: oklch(0.58 0.12 70);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --app-canvas: oklch(0.17 0.005 250);
+    --app-surface: oklch(0.215 0.006 250);
+    --app-line: oklch(0.31 0.008 250);
+    --app-ink: oklch(0.95 0.003 250);
+    --app-muted: oklch(0.67 0.009 250);
+    --app-accent: oklch(0.74 0.1 245);
+    --app-accent-contrast: oklch(0.17 0.005 250);
+    --app-warning: oklch(0.79 0.11 75);
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--app-canvas);
+  --color-surface: var(--app-surface);
+  --color-line: var(--app-line);
+  --color-ink: var(--app-ink);
+  --color-muted: var(--app-muted);
+  --color-accent: var(--app-accent);
+  --color-accent-contrast: var(--app-accent-contrast);
+  --color-warning: var(--app-warning);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+}
+
+body {
+  background-color: var(--app-canvas);
+  color: var(--app-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

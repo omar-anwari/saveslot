@@ -8,6 +8,20 @@
       "when": 1788111140288,
       "tag": "0000_damp_colossus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788118736244,
+      "tag": "0001_giant_franklin_storm",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788121663039,
+      "tag": "0002_dazzling_george_stacy",
+      "breakpoints": true
     }
   ]
 }
