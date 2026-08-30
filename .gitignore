@@ -1,9 +1,12 @@
 docs/
 node_modules
 
+.next/
 
 .env
 .env.local
 .env*.local
 
 /dev-data/
+
+*.tsbuildinfo
