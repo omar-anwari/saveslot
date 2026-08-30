@@ -3,8 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { env } from "@/lib/config/env";
-import * as schema from "./schema";
+import { env } from "../lib/config/env.ts";
+import * as schema from "./schema.ts";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
