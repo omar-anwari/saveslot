@@ -1,4 +1,6 @@
 allowBuilds:
+  better-sqlite3: true
+  esbuild: true
   sharp: false
   unrs-resolver: false
-  engineStrict: true
+engineStrict: true
