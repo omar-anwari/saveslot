@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   description: "A personal, self-hosted retro game library.",
 };
 
-const NAV_ITEMS = [{ href: "/platforms", label: "Platforms" }] as const;
+const NAV_ITEMS = [
+  { href: "/platforms", label: "Platforms" },
+  { href: "/settings", label: "Settings" },
+] as const;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

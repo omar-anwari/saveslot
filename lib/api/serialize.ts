@@ -15,8 +15,8 @@ export function serializeScanRun(run: ScanRun) {
             unmatched: run.unmatchedCount,
             errors: run.errorCount,
         },
-        startedAt: run.startedAt,
-        completedAt: run.completedAt,
+        startedAt: run.startedAt?.toISOString() ?? null,
+        completedAt: run.completedAt?.toISOString() ?? null,
         errorSummary: run.errorSummary,
         isRunning: run.status === "running",
     };
@@ -29,6 +29,6 @@ export function serializeScanEvent(event: ScanEvent) {
         type: event.eventType,
         message: event.message,
         context: event.contextJson,
-        createdAt: event.createdAt,
+        createdAt: event.createdAt.toISOString(),
     };
 }
