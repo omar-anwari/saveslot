@@ -11,18 +11,18 @@ node_modules
 
 *.tsbuildinfo
 
-.gb
-.gba
-.gbc
-.z64
-.n64
-.v64
-.nes
-.gg
-.md
-.gen
-.bin
-.sms
-.sfc
-.smc
-.zip
+*.gb
+*.gba
+*.gbc
+*.z64
+*.n64
+*.v64
+*.nes
+*.gg
+*.md
+*.gen
+*.bin
+*.sms
+*.sfc
+*.smc
+*.zip
