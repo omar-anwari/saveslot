@@ -16,7 +16,7 @@ import {
     type ScanDatabase,
     type ScanMode,
 } from "./scan-run.ts";
-import { acquireScanLock, releaseScanLock } from "./scan-lock.ts";
+import { ScanInProgressError, acquireScanLock, currentScanRunId, releaseScanLock } from "./scan-lock.ts";
 import { walkLibrary, type DiscoveredFile } from "./walk.ts";
 
 const BATCH_SIZE = 200;
@@ -63,15 +63,38 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
     return chunks;
 }
 
-export async function runScan(
-    db: ScanDatabase,
-    options: RunScanOptions,
-): Promise<RunScanResult> {
+export interface StartedScan {
+    scanRunId: string;
+    completion: Promise<RunScanResult>;
+}
+
+export function startScan(db: ScanDatabase, options: RunScanOptions): StartedScan {
+    const active = currentScanRunId();
+    if (active !== null) throw new ScanInProgressError(active);
     const scanRunId = createScanRun(db, {
         mode: options.mode,
         platformSlug: options.platformSlug,
     });
     acquireScanLock(scanRunId);
+    const completion = executeScan(db, scanRunId, options).finally(() => {
+        releaseScanLock();
+    });
+
+    return { scanRunId, completion };
+}
+
+export async function runScan(
+    db: ScanDatabase,
+    options: RunScanOptions,
+): Promise<RunScanResult> {
+    return startScan(db, options).completion;
+}
+
+async function executeScan(
+    db: ScanDatabase,
+    scanRunId: string,
+    options: RunScanOptions,
+): Promise<RunScanResult> {
     const counters: ScanCounters = { ...EMPTY_COUNTERS };
     try {
         startScanRun(db, scanRunId);
@@ -124,8 +147,6 @@ export async function runScan(
             error instanceof Error ? error.message : "Unknown scan failure.";
         failScanRun(db, scanRunId, message);
         throw error;
-    } finally {
-        releaseScanLock();
     }
 }
 
@@ -240,65 +261,65 @@ function countUnmatchedGames(db: ScanDatabase): number {
     return row?.value ?? 0;
 }
 function gameIdsForPlatform(db: ScanDatabase, platformSlug: string): number[] {
-  return db
-    .select({ id: games.id })
-    .from(games)
-    .innerJoin(platforms, eq(games.platformId, platforms.id))
-    .where(eq(platforms.slug, platformSlug))
-    .all()
-    .map((row) => row.id);
+    return db
+        .select({ id: games.id })
+        .from(games)
+        .innerJoin(platforms, eq(games.platformId, platforms.id))
+        .where(eq(platforms.slug, platformSlug))
+        .all()
+        .map((row) => row.id);
 }
 
 async function hashScannedFiles(
-  db: ScanDatabase,
-  scanRunId: string,
-  options: RunScanOptions,
-  counters: ScanCounters,
+    db: ScanDatabase,
+    scanRunId: string,
+    options: RunScanOptions,
+    counters: ScanCounters,
 ): Promise<void> {
-  const algorithms = options.algorithms ?? DEFAULT_ALGORITHMS;
-  const concurrency = options.hashConcurrency ?? 2;
-  const scopedIds = options.platformSlug
-    ? gameIdsForPlatform(db, options.platformSlug)
-    : null;
-  const rows = db
-    .select({
-      id: gameFiles.id,
-      relativePath: gameFiles.relativePath,
-      crc32: gameFiles.crc32,
-      md5: gameFiles.md5,
-      sha1: gameFiles.sha1,
-    })
-    .from(gameFiles)
-    .where(
-      scopedIds === null
-        ? eq(gameFiles.present, true)
-        : and(eq(gameFiles.present, true), inArray(gameFiles.gameId, scopedIds)),
-    )
-    .all();
-  const targets =
-    options.mode === "full"
-      ? rows
-      : rows.filter((row) =>
-          algorithms.some((algorithm) => row[algorithm] === null),
-        );
-  await mapWithConcurrency(targets, concurrency, async (row) => {
-    try {
-      const absolute = resolveWithinRoot(options.libraryRoot, row.relativePath);
-      const hashes = await hashFile(absolute, algorithms);
-      const update: Record<string, unknown> = { updatedAt: new Date() };
-      if (hashes.crc32 !== null) update.crc32 = hashes.crc32;
-      if (hashes.md5 !== null) update.md5 = hashes.md5;
-      if (hashes.sha1 !== null) update.sha1 = hashes.sha1;
-      db.update(gameFiles).set(update).where(eq(gameFiles.id, row.id)).run();
-    } catch (error) {
-      counters.errors += 1;
-      recordScanEvent(db, scanRunId, {
-        level: "warning",
-        eventType: "hash.failed",
-        message:
-          error instanceof Error ? error.message : "Hashing failed.",
-        context: { relativePath: row.relativePath },
-      });
-    }
-  });
+    const algorithms = options.algorithms ?? DEFAULT_ALGORITHMS;
+    const concurrency = options.hashConcurrency ?? 2;
+    const scopedIds = options.platformSlug
+        ? gameIdsForPlatform(db, options.platformSlug)
+        : null;
+    const rows = db
+        .select({
+            id: gameFiles.id,
+            relativePath: gameFiles.relativePath,
+            crc32: gameFiles.crc32,
+            md5: gameFiles.md5,
+            sha1: gameFiles.sha1,
+        })
+        .from(gameFiles)
+        .where(
+            scopedIds === null
+                ? eq(gameFiles.present, true)
+                : and(eq(gameFiles.present, true), inArray(gameFiles.gameId, scopedIds)),
+        )
+        .all();
+    const targets =
+        options.mode === "full"
+            ? rows
+            : rows.filter((row) =>
+                algorithms.some((algorithm) => row[algorithm] === null),
+            );
+    await mapWithConcurrency(targets, concurrency, async (row) => {
+        try {
+            const absolute = resolveWithinRoot(options.libraryRoot, row.relativePath);
+            const hashes = await hashFile(absolute, algorithms);
+            const update: Record<string, unknown> = { updatedAt: new Date() };
+            if (hashes.crc32 !== null) update.crc32 = hashes.crc32;
+            if (hashes.md5 !== null) update.md5 = hashes.md5;
+            if (hashes.sha1 !== null) update.sha1 = hashes.sha1;
+            db.update(gameFiles).set(update).where(eq(gameFiles.id, row.id)).run();
+        } catch (error) {
+            counters.errors += 1;
+            recordScanEvent(db, scanRunId, {
+                level: "warning",
+                eventType: "hash.failed",
+                message:
+                    error instanceof Error ? error.message : "Hashing failed.",
+                context: { relativePath: row.relativePath },
+            });
+        }
+    });
 }
