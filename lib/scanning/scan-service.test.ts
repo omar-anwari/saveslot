@@ -145,3 +145,45 @@ describe("runScan", () => {
         ).resolves.toBeDefined();
     });
 });
+
+describe("hashing modes", () => {
+  it("does not hash during a quick scan", async () => {
+    await runScan(handle.db, { libraryRoot: root, mode: "quick" });
+    const file = handle.db.select().from(gameFiles).get();
+    expect(file?.crc32).toBeNull();
+    expect(file?.sha1).toBeNull();
+  });
+  it("hashes every file during a full scan", async () => {
+    await runScan(handle.db, { libraryRoot: root, mode: "full" });
+    for (const file of handle.db.select().from(gameFiles).all()) {
+      expect(file.crc32).toMatch(/^[0-9a-f]{8}$/);
+      expect(file.md5).toMatch(/^[0-9a-f]{32}$/);
+      expect(file.sha1).toMatch(/^[0-9a-f]{40}$/);
+    }
+  });
+  it("backfills only missing hashes in hashes-only mode", async () => {
+    await runScan(handle.db, { libraryRoot: root, mode: "full" });
+    handle.db
+      .update(gameFiles)
+      .set({ crc32: null })
+      .where(eq(gameFiles.fileName, "Contra (USA).nes"))
+      .run();
+    await runScan(handle.db, { libraryRoot: root, mode: "hashes-only" });
+    const file = handle.db
+      .select()
+      .from(gameFiles)
+      .where(eq(gameFiles.fileName, "Contra (USA).nes"))
+      .get();
+    expect(file?.crc32).toMatch(/^[0-9a-f]{8}$/);
+  });
+  it("computes only the requested algorithms", async () => {
+    await runScan(handle.db, {
+      libraryRoot: root,
+      mode: "full",
+      algorithms: ["sha1"],
+    });
+    const file = handle.db.select().from(gameFiles).get();
+    expect(file?.sha1).toMatch(/^[0-9a-f]{40}$/);
+    expect(file?.crc32).toBeNull();
+  });
+});

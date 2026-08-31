@@ -1,5 +1,8 @@
 import { and, eq, inArray, ne, or, isNull, sql } from "drizzle-orm";
 import { gameFiles, games, platforms } from "../../db/schema.ts";
+import { resolveWithinRoot } from "../filesystem/paths.ts";
+import { DEFAULT_ALGORITHMS, hashFile, type HashAlgorithm } from "../hashing/file-hashes.ts";
+import { mapWithConcurrency } from "./concurrency.ts";
 import { parseFilename } from "./filename.ts";
 import {
     EMPTY_COUNTERS,
@@ -22,6 +25,8 @@ export interface RunScanOptions {
     libraryRoot: string;
     mode: ScanMode;
     platformSlug?: string;
+    hashConcurrency?: number;
+    algorithms?: readonly HashAlgorithm[];
 }
 
 export interface RunScanResult {
@@ -107,6 +112,10 @@ export async function runScan(
             updateScanCounters(db, scanRunId, counters);
         }
         counters.missing = markMissingFiles(db, scanRunId, options.platformSlug);
+        if (options.mode === "full" || options.mode === "hashes-only") {
+            await hashScannedFiles(db, scanRunId, options, counters);
+            updateScanCounters(db, scanRunId, counters);
+        }
         counters.unmatched = countUnmatchedGames(db);
         completeScanRun(db, scanRunId, counters);
         return { scanRunId, counters };
@@ -229,4 +238,67 @@ function countUnmatchedGames(db: ScanDatabase): number {
         .where(eq(games.metadataStatus, "unmatched"))
         .get();
     return row?.value ?? 0;
+}
+function gameIdsForPlatform(db: ScanDatabase, platformSlug: string): number[] {
+  return db
+    .select({ id: games.id })
+    .from(games)
+    .innerJoin(platforms, eq(games.platformId, platforms.id))
+    .where(eq(platforms.slug, platformSlug))
+    .all()
+    .map((row) => row.id);
+}
+
+async function hashScannedFiles(
+  db: ScanDatabase,
+  scanRunId: string,
+  options: RunScanOptions,
+  counters: ScanCounters,
+): Promise<void> {
+  const algorithms = options.algorithms ?? DEFAULT_ALGORITHMS;
+  const concurrency = options.hashConcurrency ?? 2;
+  const scopedIds = options.platformSlug
+    ? gameIdsForPlatform(db, options.platformSlug)
+    : null;
+  const rows = db
+    .select({
+      id: gameFiles.id,
+      relativePath: gameFiles.relativePath,
+      crc32: gameFiles.crc32,
+      md5: gameFiles.md5,
+      sha1: gameFiles.sha1,
+    })
+    .from(gameFiles)
+    .where(
+      scopedIds === null
+        ? eq(gameFiles.present, true)
+        : and(eq(gameFiles.present, true), inArray(gameFiles.gameId, scopedIds)),
+    )
+    .all();
+  const targets =
+    options.mode === "full"
+      ? rows
+      : rows.filter((row) =>
+          algorithms.some((algorithm) => row[algorithm] === null),
+        );
+  await mapWithConcurrency(targets, concurrency, async (row) => {
+    try {
+      const absolute = resolveWithinRoot(options.libraryRoot, row.relativePath);
+      const hashes = await hashFile(absolute, algorithms);
+      const update: Record<string, unknown> = { updatedAt: new Date() };
+      if (hashes.crc32 !== null) update.crc32 = hashes.crc32;
+      if (hashes.md5 !== null) update.md5 = hashes.md5;
+      if (hashes.sha1 !== null) update.sha1 = hashes.sha1;
+      db.update(gameFiles).set(update).where(eq(gameFiles.id, row.id)).run();
+    } catch (error) {
+      counters.errors += 1;
+      recordScanEvent(db, scanRunId, {
+        level: "warning",
+        eventType: "hash.failed",
+        message:
+          error instanceof Error ? error.message : "Hashing failed.",
+        context: { relativePath: row.relativePath },
+      });
+    }
+  });
 }

@@ -155,7 +155,9 @@ if (appPasswordEnabled) {
 
 // Resolve a configured path to an absolute one without touching anything
 function resolveFromRoot(value: string): string {
-    return path.isAbsolute(value) ? value : path.resolve(REPO_ROOT, value);
+    return path.isAbsolute(value)
+        ? value
+        : path.resolve(/*turbopackIgnore: true*/ REPO_ROOT, value);
 }
 
 export const env = Object.freeze({

@@ -2,6 +2,7 @@
   "name": "saveslot",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=24.20.0 <25.0.0",
     "pnpm": ">=11.24.0 <12.0.0"
@@ -16,8 +17,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "node --conditions=react-server db/seed.ts",
+    "scan": "node --conditions=react-server scripts/scan.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
