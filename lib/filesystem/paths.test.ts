@@ -91,9 +91,9 @@ describe("resolveRealPathWithinRoot", () => {
 });
 
 describe("toPosixRelative", () => {
-  it("produces forward-slash relative paths", () => {
-    expect(toPosixRelative(root, path.join(root, "nes", "game.nes"))).toBe(
-      "nes/game.nes",
-    );
-  });
+    it("produces forward-slash relative paths", () => {
+        expect(toPosixRelative(root, path.join(root, "nes", "game.nes"))).toBe(
+            "nes/game.nes",
+        );
+    });
 });

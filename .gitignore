@@ -10,3 +10,19 @@ node_modules
 /dev-data/
 
 *.tsbuildinfo
+
+.gb
+.gba
+.gbc
+.z64
+.n64
+.v64
+.nes
+.gg
+.md
+.gen
+.bin
+.sms
+.sfc
+.smc
+.zip
