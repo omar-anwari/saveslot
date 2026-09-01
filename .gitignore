@@ -7,7 +7,9 @@ node_modules
 .env.local
 .env*.local
 
-/dev-data/
+/dev-data/*
+/dev-library/*
+/public/emulatorjs/
 
 *.tsbuildinfo
 
@@ -26,3 +28,5 @@ node_modules
 *.sfc
 *.smc
 *.zip
+
+.DS_Store

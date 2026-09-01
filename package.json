@@ -16,8 +16,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "node --conditions=react-server db/seed.ts",
-    "scan": "node --conditions=react-server scripts/scan.ts",
+    "db:seed": "node --env-file-if-exists=.env.local --conditions=react-server db/seed.ts",
+    "scan": "node --env-file-if-exists=.env.local --conditions=react-server scripts/scan.ts",
+    "emulatorjs:sync": "node --env-file-if-exists=.env.local --conditions=react-server scripts/emulatorjs-sync.ts",
+    "emulatorjs:check": "node --env-file-if-exists=.env.local --conditions=react-server scripts/emulatorjs-sync.ts --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
