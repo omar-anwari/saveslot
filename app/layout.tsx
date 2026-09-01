@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 const NAV_ITEMS = [
+  { href: "/library", label: "Library"},
   { href: "/platforms", label: "Platforms" },
   { href: "/settings", label: "Settings" },
 ] as const;
