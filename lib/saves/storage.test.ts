@@ -154,3 +154,41 @@ describe("storeSave", () => {
         expect(await readdir(path.join(dataRoot, "temp"))).toEqual([]);
     });
 });
+
+describe("deleteSave", () => {
+    it("removes a historical save and its file", async () => {
+        await store("first");
+        await store("second");
+        const { deleteSave, getSave } = await import("./storage.ts");
+        const history = listSaves(handle.db, gameId).find((row) => !row.isCurrent);
+        const filePath = path.resolve(dataRoot, history!.localRelativePath);
+        const result = await deleteSave(handle.db, dataRoot, history!.id);
+        expect(result?.promotedId).toBeNull();
+        expect(getSave(handle.db, history!.id)).toBeUndefined();
+        await expect(stat(filePath)).rejects.toBeDefined();
+        expect(listSaves(handle.db, gameId)).toHaveLength(1);
+    });
+    it("promotes the newest remaining save when the current one is deleted", async () => {
+        await store("older");
+        await store("newer");
+        const { deleteSave } = await import("./storage.ts");
+        const before = currentSave(handle.db, gameId, "snes9x");
+        const older = listSaves(handle.db, gameId).find((row) => !row.isCurrent);
+        const result = await deleteSave(handle.db, dataRoot, before!.id);
+        expect(result?.promotedId).toBe(older!.id);
+        expect(currentSave(handle.db, gameId, "snes9x")?.id).toBe(older!.id);
+    });
+    it("leaves no current save when the last one is deleted", async () => {
+        await store("only");
+        const { deleteSave } = await import("./storage.ts");
+        const only = currentSave(handle.db, gameId, "snes9x");
+        const result = await deleteSave(handle.db, dataRoot, only!.id);
+        expect(result?.promotedId).toBeNull();
+        expect(currentSave(handle.db, gameId, "snes9x")).toBeUndefined();
+        expect(listSaves(handle.db, gameId)).toHaveLength(0);
+    });
+    it("returns null for an unknown id", async () => {
+        const { deleteSave } = await import("./storage.ts");
+        expect(await deleteSave(handle.db, dataRoot, 99999)).toBeNull();
+    });
+});

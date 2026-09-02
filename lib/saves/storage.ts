@@ -258,3 +258,50 @@ export function currentSave(
         )
         .get();
 }
+
+export function getSave(db: ScanDatabase, saveId: number) {
+    return db.select().from(saves).where(eq(saves.id, saveId)).get();
+}
+
+export interface DeleteSaveResult {
+    deletedId: number;
+    promotedId: number | null;
+}
+
+export async function deleteSave(
+    db: ScanDatabase,
+    dataRoot: string,
+    saveId: number,
+): Promise<DeleteSaveResult | null> {
+    const save = getSave(db, saveId);
+    if (!save) return null;
+    const promotedId = db.transaction((tx) => {
+        tx.delete(saves).where(eq(saves.id, saveId)).run();
+        if (!save.isCurrent) return null;
+        const next = tx
+            .select({ id: saves.id })
+            .from(saves)
+            .where(
+                and(
+                    eq(saves.gameId, save.gameId),
+                    eq(saves.coreKey, save.coreKey),
+                    eq(saves.slot, save.slot),
+                ),
+            )
+            .orderBy(desc(saves.createdAt), desc(saves.id))
+            .get();
+        if (!next) return null;
+        tx.update(saves)
+            .set({ isCurrent: true, updatedAt: new Date() })
+            .where(eq(saves.id, next.id))
+            .run();
+        return next.id;
+    });
+    await rm(path.resolve(dataRoot, save.localRelativePath), { force: true });
+    if (save.screenshotRelativePath) {
+        await rm(path.resolve(dataRoot, save.screenshotRelativePath), {
+            force: true,
+        });
+    }
+    return { deletedId: saveId, promotedId };
+}
