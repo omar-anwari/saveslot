@@ -1,5 +1,12 @@
 import { sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const platforms = sqliteTable("platforms", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -228,6 +235,121 @@ export const scanEvents = sqliteTable(
   ],
 );
 
+export const SAVE_KINDS = ["sram", "memory_card", "battery", "unknown"] as const;
+export const SAVE_SOURCES = ["emulator", "upload", "import", "backup"] as const;
+
+export const EXIT_REASONS = [
+  "save_and_quit",
+  "normal_exit",
+  "navigation",
+  "timeout",
+  "crash",
+  "unknown",
+] as const;
+
+export const saves = sqliteTable(
+  "saves",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    coreKey: text("core_key").notNull(),
+    slot: text("slot").notNull().default("main"),
+    kind: text("kind", { enum: SAVE_KINDS }).notNull().default("sram"),
+    fileExtension: text("file_extension").notNull(),
+    localRelativePath: text("local_relative_path").notNull(),
+    checksumSha256: text("checksum_sha256").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    screenshotRelativePath: text("screenshot_relative_path"),
+    isCurrent: integer("is_current", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    source: text("source", { enum: SAVE_SOURCES }).notNull().default("emulator"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    index("saves_game_idx").on(table.gameId),
+    index("saves_checksum_idx").on(table.checksumSha256),
+    uniqueIndex("saves_one_current_idx")
+      .on(table.gameId, table.coreKey, table.slot)
+      .where(sql`${table.isCurrent} = 1`),
+  ],
+);
+
+export const saveStates = sqliteTable(
+  "save_states",
+  {
+    id: text("id").primaryKey(),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    coreKey: text("core_key").notNull(),
+    coreVersion: text("core_version"),
+    slot: text("slot"),
+    label: text("label"),
+    localRelativePath: text("local_relative_path").notNull(),
+    screenshotRelativePath: text("screenshot_relative_path"),
+    checksumSha256: text("checksum_sha256").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    isAutosave: integer("is_autosave", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    index("save_states_game_idx").on(table.gameId),
+    index("save_states_core_idx").on(table.gameId, table.coreKey),
+    index("save_states_autosave_idx").on(table.isAutosave),
+  ],
+);
+
+export const playSessions = sqliteTable(
+  "play_sessions",
+  {
+    id: text("id").primaryKey(),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    startedAt: integer("started_at", { mode: "timestamp" }).notNull(),
+    lastHeartbeatAt: integer("last_heartbeat_at", { mode: "timestamp" }).notNull(),
+    endedAt: integer("ended_at", { mode: "timestamp" }),
+    durationSeconds: integer("duration_seconds").notNull().default(0),
+    exitReason: text("exit_reason", { enum: EXIT_REASONS })
+      .notNull()
+      .default("unknown"),
+    coreKey: text("core_key").notNull(),
+    clientId: text("client_id").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    index("play_sessions_game_idx").on(table.gameId),
+    index("play_sessions_ended_idx").on(table.endedAt),
+    index("play_sessions_heartbeat_idx").on(table.lastHeartbeatAt),
+  ],
+);
+
+export type Save = typeof saves.$inferSelect;
+export type NewSave = typeof saves.$inferInsert;
+export type SaveState = typeof saveStates.$inferSelect;
+export type NewSaveState = typeof saveStates.$inferInsert;
+export type PlaySession = typeof playSessions.$inferSelect;
+export type NewPlaySession = typeof playSessions.$inferInsert;
 export type ScanRun = typeof scanRuns.$inferSelect;
 export type NewScanRun = typeof scanRuns.$inferInsert;
 export type ScanEvent = typeof scanEvents.$inferSelect;
