@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { games } from "@/db/schema";
 import { env } from "@/lib/config/env";
 import { getGameDetail } from "@/lib/games/query";
+import { currentSave } from "@/lib/saves/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,7 @@ export default async function PlayerPage({
             />
         );
     }
+    const existing = currentSave(db, row.id, game.platform.emulatorCore);
     return (
         <div className="relative bg-black">
             <a
@@ -74,12 +76,19 @@ export default async function PlayerPage({
                 ← Exit
             </a>
             <Emulator
+                gameSlug={slug}
                 gameId={row.id}
                 gameName={game.title}
                 core={game.platform.emulatorCore}
                 contentUrl={`/api/games/${slug}/content`}
                 dataPath={env.EMULATORJS_DATA_PATH}
                 threads={env.EMULATORJS_THREADS}
+                saveIntervalMs={env.EMULATORJS_FIXED_SAVE_INTERVAL_MS}
+                initialSave={
+                    existing
+                        ? { id: existing.id, checksumSha256: existing.checksumSha256 }
+                        : null
+                }
             />
         </div>
     );

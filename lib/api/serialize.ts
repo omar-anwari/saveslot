@@ -1,4 +1,4 @@
-import type { ScanEvent, ScanRun, Save } from "../../db/schema.ts";
+import type { ScanEvent, ScanRun, Save, SaveState } from "../../db/schema.ts";
 
 export function serializeScanRun(run: ScanRun) {
     return {
@@ -47,5 +47,21 @@ export function serializeSave(save: Save) {
         hasScreenshot: save.screenshotRelativePath !== null,
         createdAt: save.createdAt.toISOString(),
         updatedAt: save.updatedAt.toISOString(),
+    };
+}
+
+export function serializeSaveState(state: SaveState) {
+    return {
+        id: state.id,
+        coreKey: state.coreKey,
+        coreVersion: state.coreVersion,
+        slot: state.slot,
+        label: state.label,
+        checksumSha256: state.checksumSha256,
+        byteSize: state.byteSize,
+        isAutosave: state.isAutosave,
+        hasScreenshot: state.screenshotRelativePath !== null,
+        createdAt: state.createdAt.toISOString(),
+        updatedAt: state.updatedAt.toISOString(),
     };
 }

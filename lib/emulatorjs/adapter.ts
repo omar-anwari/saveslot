@@ -3,6 +3,7 @@ interface EmscriptenFS {
   readFile(path: string): Uint8Array;
   analyzePath(path: string): { exists: boolean };
   unlink(path: string): void;
+  mkdir(path: string): void;
 }
 
 interface GameManagerLike {
@@ -103,6 +104,27 @@ export class EmulatorAdapter {
   supportsStates(): boolean {
     return this.#manager().supportsStates();
   }
+  saveFilePath(): string {
+    return this.#manager().getSaveFilePath();
+  }
+  async waitForSavePath(timeoutMs = 30000): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+    for (; ;) {
+      let candidate = "";
+      try {
+        candidate = this.#manager().getSaveFilePath();
+      } catch {
+        candidate = "";
+      }
+      if (candidate.length > 1) return candidate;
+      if (Date.now() > deadline) {
+        throw new EmulatorNotReadyError(
+          "The core never reported a save file path.",
+        );
+      }
+      await delay(200);
+    }
+  }
   async pause(): Promise<void> {
     const emulator = this.#require();
     if (!emulator.paused) emulator.pause();
@@ -125,6 +147,13 @@ export class EmulatorAdapter {
   async loadSave(bytes: Uint8Array): Promise<void> {
     const manager = this.#manager();
     const path = manager.getSaveFilePath();
+    let current = "";
+    for (const segment of path.split("/").slice(0, -1)) {
+      if (segment === "") continue;
+      current += `/${segment}`;
+      if (!manager.FS.analyzePath(current).exists) manager.FS.mkdir(current);
+    }
+    if (manager.FS.analyzePath(path).exists) manager.FS.unlink(path);
     manager.FS.writeFile(path, bytes);
     manager.loadSaveFiles();
     await delay(this.#settleMs);

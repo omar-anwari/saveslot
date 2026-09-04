@@ -5,6 +5,12 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    files: ["components/player/**", "app/player/**"],
+    rules: {
+      "@next/next/no-location-assign-relative-destination": "off",
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",
