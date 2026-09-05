@@ -21,7 +21,7 @@ export default function LibraryLayout({ children }: { children: ReactNode }) {
                 <header className="border-b border-line">
                     <div className="mx-auto flex w-full max-w-6xl items-center gap-8 px-6 py-4">
                         <Link
-                            href="/library"
+                            href="/"
                             className="text-sm font-semibold tracking-tight text-ink outline-offset-4 focus-visible:outline-2 focus-visible:outline-accent"
                         >
                             {env.APP_NAME}

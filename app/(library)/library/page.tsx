@@ -4,6 +4,7 @@ import { PlaceholderCover } from "@/components/library/placeholder-cover";
 import { db } from "@/db/client";
 import { platforms } from "@/db/schema";
 import { GAME_SORTS, queryGames, type GameSort } from "@/lib/games/query";
+import { GameCard } from "@/components/library/game-card";
 
 export const dynamic = "force-dynamic";
 
@@ -169,27 +170,15 @@ export default async function LibraryPage({
             ) : (
                 <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     {result.games.map((game) => (
-                        <li key={game.slug}>
-                            <Link
-                                href={`/games/${game.slug}`}
-                                className="group block rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                            >
-                                <PlaceholderCover
-                                    title={game.title}
-                                    platformSlug={game.platformSlug}
-                                />
-                                <h2 className="mt-2 line-clamp-2 text-sm font-medium leading-snug group-hover:underline">
-                                    {game.title}
-                                </h2>
-                            </Link>
-                            <p className="mt-0.5 text-xs text-muted">
-                                {game.platformName}
-                                {game.releaseYear ? ` · ${game.releaseYear}` : ""}
-                            </p>
-                            {!game.present ? (
-                                <p className="mt-1 text-xs text-warning">File missing</p>
-                            ) : null}
-                        </li>
+                        <GameCard
+                            key={game.slug}
+                            slug={game.slug}
+                            title={game.title}
+                            platformSlug={game.platformSlug}
+                            platformName={game.platformName}
+                            releaseYear={game.releaseYear}
+                            present={game.present}
+                        />
                     ))}
                 </ul>
             )}

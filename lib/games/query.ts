@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL, gt, notInArray } from "drizzle-orm";
 import { gameFiles, games, platforms } from "../../db/schema.ts";
 import type { ScanDatabase } from "../scanning/scan-run.ts";
 
@@ -59,6 +59,24 @@ export interface GameQueryResult {
     pageSize: number;
     pageCount: number;
 }
+
+const GAME_LIST_COLUMNS = {
+    slug: games.slug,
+    title: games.title,
+    platformSlug: platforms.slug,
+    platformName: platforms.name,
+    releaseYear: games.releaseYear,
+    favourite: games.favourite,
+    hidden: games.hidden,
+    playStatus: games.playStatus,
+    metadataStatus: games.metadataStatus,
+    lastPlayedAt: games.lastPlayedAt,
+    totalPlaySeconds: games.totalPlaySeconds,
+    present: sql<boolean>`exists (
+    select 1 from ${gameFiles}
+    where ${gameFiles.gameId} = ${games.id} and ${gameFiles.present} = 1
+  )`,
+};
 
 const presentExpression = sql<boolean>`exists (
   select 1 from ${gameFiles}
@@ -132,20 +150,7 @@ export function queryGames(
     const conditions = buildConditions(query);
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const rows = db
-        .select({
-            slug: games.slug,
-            title: games.title,
-            platformSlug: platforms.slug,
-            platformName: platforms.name,
-            releaseYear: games.releaseYear,
-            favourite: games.favourite,
-            hidden: games.hidden,
-            playStatus: games.playStatus,
-            metadataStatus: games.metadataStatus,
-            lastPlayedAt: games.lastPlayedAt,
-            totalPlaySeconds: games.totalPlaySeconds,
-            present: presentExpression,
-        })
+        .select(GAME_LIST_COLUMNS)
         .from(games)
         .innerJoin(platforms, eq(games.platformId, platforms.id))
         .where(where)
@@ -312,4 +317,92 @@ export function getGameDetail(
         },
         files,
     };
+}
+
+function toListItems(
+    rows: Array<Omit<GameListItem, "present"> & { present: unknown }>,
+): GameListItem[] {
+    return rows.map((row) => ({ ...row, present: Boolean(row.present) }));
+}
+
+function baseListQuery(db: ScanDatabase) {
+    return db.select(GAME_LIST_COLUMNS).from(games).innerJoin(
+        platforms,
+        eq(games.platformId, platforms.id)
+    );
+}
+
+export function continuePlaying(
+  db: ScanDatabase,
+  limit = 12,
+): GameListItem[] {
+  return toListItems(
+    baseListQuery(db)
+      .where(
+        and(
+          eq(games.hidden, false),
+          gt(games.totalPlaySeconds, 0),
+          notInArray(games.playStatus, ["completed", "abandoned"]),
+        ),
+      )
+      .orderBy(desc(games.lastPlayedAt))
+      .limit(limit)
+      .all(),
+  );
+}
+
+export function recentlyAdded(db: ScanDatabase, limit = 12): GameListItem[] {
+  return toListItems(
+    baseListQuery(db)
+      .where(eq(games.hidden, false))
+      .orderBy(desc(games.createdAt), desc(games.id))
+      .limit(limit)
+      .all(),
+  );
+}
+
+export function favouriteGames(db: ScanDatabase, limit = 12): GameListItem[] {
+  return toListItems(
+    baseListQuery(db)
+      .where(and(eq(games.hidden, false), eq(games.favourite, true)))
+      .orderBy(asc(games.sortTitle))
+      .limit(limit)
+      .all(),
+  );
+}
+
+// Only offer something that can actually be launched.
+export function randomPick(db: ScanDatabase): GameListItem | null {
+  const rows = toListItems(
+    baseListQuery(db)
+      .where(eq(games.hidden, false))
+      .orderBy(sql`random()`)
+      .limit(5)
+      .all(),
+  );
+  return rows.find((row) => row.present) ?? rows[0] ?? null;
+}
+
+export interface PlatformSummary {
+  slug: string;
+  name: string;
+  gameCount: number;
+}
+
+export function platformSummaries(db: ScanDatabase): PlatformSummary[] {
+  return db
+    .select({
+      slug: platforms.slug,
+      name: platforms.name,
+      gameCount: sql<number>`count(${games.id})`,
+    })
+    .from(platforms)
+    .leftJoin(
+      games,
+      and(eq(games.platformId, platforms.id), eq(games.hidden, false)),
+    )
+    .where(eq(platforms.enabled, true))
+    .groupBy(platforms.id)
+    .orderBy(asc(platforms.name))
+    .all();
 }

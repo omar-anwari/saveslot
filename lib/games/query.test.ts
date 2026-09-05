@@ -177,3 +177,56 @@ describe("updateGame", () => {
         expect(after?.title).toBe(before?.title);
     });
 });
+
+describe("home sections", () => {
+    it("shows games with playtime that are not finished", async () => {
+        const q = await import("./query.ts");
+        handle.db
+            .update(games)
+            .set({ totalPlaySeconds: 600, lastPlayedAt: new Date() })
+            .where(eq(games.slug, "a"))
+            .run();
+        handle.db
+            .update(games)
+            .set({ totalPlaySeconds: 900, playStatus: "completed" })
+            .where(eq(games.slug, "b"))
+            .run();
+        const rows = q.continuePlaying(handle.db);
+        expect(rows.map((row) => row.slug)).toEqual(["a"]);
+    });
+    it("is empty when nothing has been played", async () => {
+        const q = await import("./query.ts");
+        expect(q.continuePlaying(handle.db)).toEqual([]);
+    });
+    it("orders recently added newest first and honours the limit", async () => {
+        const q = await import("./query.ts");
+        const rows = q.recentlyAdded(handle.db, 2);
+        expect(rows).toHaveLength(2);
+    });
+    it("lists only favourites, excluding hidden games", async () => {
+        const q = await import("./query.ts");
+        handle.db
+            .update(games)
+            .set({ favourite: true })
+            .where(eq(games.slug, "d"))
+            .run();
+        const rows = q.favouriteGames(handle.db);
+        expect(rows.map((row) => row.slug)).toEqual(["b"]);
+    });
+    it("prefers a present game for the random pick", async () => {
+        const q = await import("./query.ts");
+        for (let i = 0; i < 10; i += 1) {
+            expect(q.randomPick(handle.db)?.present).toBe(true);
+        }
+    });
+    it("counts games per platform, excluding hidden ones", async () => {
+        const q = await import("./query.ts");
+        const summaries = q.platformSummaries(handle.db);
+        const nes = summaries.find((row) => row.slug === "nes");
+        const snes = summaries.find((row) => row.slug === "snes");
+        const gba = summaries.find((row) => row.slug === "gba");
+        expect(nes?.gameCount).toBe(2);
+        expect(snes?.gameCount).toBe(1);
+        expect(gba?.gameCount).toBe(0);
+    });
+});
