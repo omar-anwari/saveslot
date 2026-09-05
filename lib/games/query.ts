@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, sql, type SQL, gt, notInArray } from "drizzle-orm";
-import { gameFiles, games, platforms } from "../../db/schema.ts";
+import { gameFiles, games, metadataCandidates, platforms } from "../../db/schema.ts";
 import type { ScanDatabase } from "../scanning/scan-run.ts";
 
 export const GAME_SORTS = [
@@ -190,6 +190,66 @@ export interface GameFileDetail {
     hashedEntry: string | null;
 }
 
+export interface MatchReasonDetail {
+    code: string;
+    delta: number;
+    detail: string;
+}
+
+export interface ExternalIdDetail {
+    source: string;
+    id: string;
+    url: string | null;
+    confidence: string;
+}
+
+export interface MetadataCandidateDetail {
+    providerKey: string;
+    providerGameId: string;
+    title: string;
+    score: number;
+    matchType: string;
+    platformSlug: string | null;
+    isSelected: boolean;
+    reasons: MatchReasonDetail[];
+    externalIds: ExternalIdDetail[];
+}
+
+function readReasons(value: unknown): MatchReasonDetail[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((entry) => {
+        if (typeof entry !== "object" || entry === null) return [];
+        const { code, delta, detail } = entry as Record<string, unknown>;
+        if (typeof code !== "string") return [];
+        return [
+            {
+                code,
+                delta: typeof delta === "number" ? delta : 0,
+                detail: typeof detail === "string" ? detail : "",
+            },
+        ];
+    });
+}
+
+function readExternalIds(value: unknown): ExternalIdDetail[] {
+    if (typeof value !== "object" || value === null) return [];
+    const list = (value as Record<string, unknown>).externalIds;
+    if (!Array.isArray(list)) return [];
+    return list.flatMap((entry) => {
+        if (typeof entry !== "object" || entry === null) return [];
+        const { source, id, url, confidence } = entry as Record<string, unknown>;
+        if (typeof source !== "string" || typeof id !== "string") return [];
+        return [
+            {
+                source,
+                id,
+                url: typeof url === "string" && url.length > 0 ? url : null,
+                confidence: typeof confidence === "string" ? confidence : "unknown",
+            },
+        ];
+    });
+}
+
 export interface GameDetail {
     slug: string;
     title: string;
@@ -209,6 +269,7 @@ export interface GameDetail {
     metadataStatus: string;
     metadataProvider: string | null;
     metadataConfidence: number | null;
+    candidates: MetadataCandidateDetail[];
     favourite: boolean;
     hidden: boolean;
     playStatus: string;
@@ -287,6 +348,33 @@ export function getGameDetail(
         .where(eq(gameFiles.gameId, row.id))
         .orderBy(asc(gameFiles.relativePath))
         .all();
+    const candidates = db
+        .select({
+            providerKey: metadataCandidates.providerKey,
+            providerGameId: metadataCandidates.providerGameId,
+            title: metadataCandidates.title,
+            score: metadataCandidates.score,
+            matchType: metadataCandidates.matchType,
+            platformSlug: metadataCandidates.platformSlug,
+            isSelected: metadataCandidates.isSelected,
+            reasonsJson: metadataCandidates.reasonsJson,
+            metadataJson: metadataCandidates.metadataJson,
+        })
+        .from(metadataCandidates)
+        .where(eq(metadataCandidates.gameId, row.id))
+        .orderBy(desc(metadataCandidates.score))
+        .all()
+        .map((candidate) => ({
+            providerKey: candidate.providerKey,
+            providerGameId: candidate.providerGameId,
+            title: candidate.title,
+            score: candidate.score,
+            matchType: candidate.matchType,
+            platformSlug: candidate.platformSlug,
+            isSelected: candidate.isSelected,
+            reasons: readReasons(candidate.reasonsJson),
+            externalIds: readExternalIds(candidate.metadataJson),
+        }));
     return {
         slug: row.slug,
         title: row.title,
@@ -306,6 +394,7 @@ export function getGameDetail(
         metadataStatus: row.metadataStatus,
         metadataProvider: row.metadataProvider,
         metadataConfidence: row.metadataConfidence,
+        candidates,
         favourite: row.favourite,
         hidden: row.hidden,
         playStatus: row.playStatus,

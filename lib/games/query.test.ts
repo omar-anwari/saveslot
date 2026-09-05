@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, afterEach, describe, expect, it } from "vitest";
-import { gameFiles, games, platforms } from "../../db/schema.ts";
+import { gameFiles, games, metadataCandidates, platforms } from "../../db/schema.ts";
 import {
     createTestDatabase,
     seedTestPlatforms,
@@ -228,5 +228,58 @@ describe("home sections", () => {
         expect(nes?.gameCount).toBe(2);
         expect(snes?.gameCount).toBe(1);
         expect(gba?.gameCount).toBe(0);
+    });
+});
+
+describe("getGameDetail candidates", () => {
+    function gameIdFor(slug: string): number {
+        return handle.db.select({ id: games.id }).from(games).where(eq(games.slug, slug)).get()!.id;
+    }
+    it("returns candidates best first, with reasons and links", () => {
+        const gameId = gameIdFor("a");
+        handle.db
+            .insert(metadataCandidates)
+            .values([
+                {
+                    gameId, providerKey: "hasheous", providerGameId: "1",
+                    score: 0.5, matchType: "hash", platformSlug: null, title: "Weak",
+                    metadataJson: {}, reasonsJson: [], isSelected: false,
+                },
+                {
+                    gameId, providerKey: "hasheous", providerGameId: "2",
+                    score: 1, matchType: "hash", platformSlug: "nes", title: "Strong",
+                    metadataJson: {
+                        externalIds: [
+                            { source: "IGDB", id: "1025", url: "https://igdb.test/1025", confidence: "automatic" },
+                        ],
+                    },
+                    reasonsJson: [{ code: "hash.sha1", delta: 1, detail: "exact" }],
+                    isSelected: true,
+                },
+            ])
+            .run();
+        const detail = getGameDetail(handle.db, "a");
+        expect(detail?.candidates.map((entry) => entry.title)).toEqual(["Strong", "Weak"]);
+        expect(detail?.candidates[0]?.isSelected).toBe(true);
+        expect(detail?.candidates[0]?.reasons[0]?.code).toBe("hash.sha1");
+        expect(detail?.candidates[0]?.externalIds[0]?.url).toBe("https://igdb.test/1025");
+    });
+    it("degrades to empty lists on malformed stored json", () => {
+        handle.db
+            .insert(metadataCandidates)
+            .values({
+                gameId: gameIdFor("b"), providerKey: "x", providerGameId: "1",
+                score: 1, matchType: "hash", platformSlug: "nes", title: "B",
+                metadataJson: { externalIds: "not an array" } as never,
+                reasonsJson: [{ nope: true }, "junk"] as never,
+                isSelected: false,
+            })
+            .run();
+        const detail = getGameDetail(handle.db, "b");
+        expect(detail?.candidates[0]?.reasons).toEqual([]);
+        expect(detail?.candidates[0]?.externalIds).toEqual([]);
+    });
+    it("is empty for a game nothing has matched", () => {
+        expect(getGameDetail(handle.db, "c")?.candidates).toEqual([]);
     });
 });
