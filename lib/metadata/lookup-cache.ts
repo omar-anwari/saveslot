@@ -25,6 +25,7 @@ export interface LookupEntry {
     payload?: unknown;
     errorMessage?: string | null;
     latencyMs?: number | null;
+    ttlMs?: number | null;
 }
 
 const HASH_PREFERENCE: readonly HashAlgorithm[] = ["sha1", "md5", "crc32"];
@@ -43,8 +44,13 @@ export function chooseLookupHash(hashes: {
     return null;
 }
 
-function expiryFor(status: LookupStatus, now: Date): Date | null {
+export const MAX_ERROR_TTL_MS = 6 * 60 * 60 * 1000;
+
+function expiryFor(status: LookupStatus, now: Date, ttlMs?: number | null): Date | null {
     if (status === "matched") return null;
+    if (typeof ttlMs === "number" && ttlMs >= 0) {
+        return new Date(now.getTime() + Math.min(ttlMs, MAX_ERROR_TTL_MS));
+    }
     const ttl = status === "not_found" ? NOT_FOUND_TTL_MS : ERROR_TTL_MS;
     return new Date(now.getTime() + ttl);
 }
@@ -87,7 +93,7 @@ export function writeLookup(
         errorMessage: entry.errorMessage ?? null,
         latencyMs: entry.latencyMs ?? null,
         fetchedAt: now,
-        expiresAt: expiryFor(entry.status, now),
+        expiresAt: expiryFor(entry.status, now, entry.ttlMs),
     };
     db.insert(metadataLookups)
         .values({

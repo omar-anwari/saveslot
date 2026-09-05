@@ -114,6 +114,29 @@ describe("createHasheousProvider", () => {
         expect(candidate?.score).toBe(0.8);
         expect(candidate?.reasons.some((reason) => reason.code === "hash.unverified")).toBe(true);
     });
+    it("applies a CRC32-only signature when the size corroborates it", async () => {
+        const crcOnly = structuredClone(recorded) as {
+            signature: { rom: { md5: string; sha1: string; size: number } };
+        };
+        crcOnly.signature.rom.md5 = "";
+        crcOnly.signature.rom.sha1 = "";
+        const { provider } = providerReturning(200, crcOnly);
+        const candidate = await firstCandidate(provider, zelda2);
+        expect(candidate?.score).toBe(0.98);
+        expect(candidate?.reasons.some((reason) => reason.code === "hash.crc32+size")).toBe(true);
+    });
+
+    it("will not apply a CRC32 match with no size agreement", async () => {
+        const crcOnly = structuredClone(recorded) as {
+            signature: { rom: { md5: string; sha1: string } };
+        };
+        crcOnly.signature.rom.md5 = "";
+        crcOnly.signature.rom.sha1 = "";
+        const { provider } = providerReturning(200, crcOnly);
+        const candidate = await firstCandidate(provider, { ...zelda2, fileSize: 999 });
+        expect(candidate?.score).toBe(0.9);
+        expect(candidate?.reasons.some((reason) => reason.code === "hash.crc32")).toBe(true);
+    });
     it("treats 404 as no match, not an error", async () => {
         const { provider } = providerReturning(
             404,

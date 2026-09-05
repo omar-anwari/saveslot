@@ -49,7 +49,7 @@ export async function runMetadataPass(
 ): Promise<RunMetadataSummary> {
     const conditions = [];
     if (options.includeMatched !== true) {
-        conditions.push(inArray(games.metadataStatus, ["unmatched", "error"]));
+        conditions.push(inArray(games.metadataStatus, ["unmatched", "error", "partial"]));
     }
     if (options.platformSlug !== undefined) {
         conditions.push(eq(platforms.slug, options.platformSlug));
@@ -85,6 +85,11 @@ export async function runMetadataPass(
             case "error": summary.errors += 1; break;
         }
         options.onProgress?.(result, index, targets.length);
+        if (result.retryAfterMs !== null && !result.fromCache) {
+            summary.abortedReason =
+                `Provider is rate limiting. Retry in about ${Math.ceil(result.retryAfterMs / 1000)}s.`;
+            break;
+        }
         if (result.outcome === "error" && !result.fromCache) {
             consecutiveErrors += 1;
             if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {

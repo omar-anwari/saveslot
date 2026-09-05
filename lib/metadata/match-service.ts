@@ -7,6 +7,7 @@ import {
     type LookupKey,
     type MetadataDatabase,
 } from "./lookup-cache.ts";
+import { MetadataProviderError } from "./providers/hasheous.ts";
 import type { HashMatchInput, MetadataCandidate, MetadataProvider } from "./types.ts";
 
 export const AUTO_SELECT_MIN_SCORE = 0.98;
@@ -18,6 +19,7 @@ export interface MatchGameResult {
     candidateCount: number;
     appliedTitle: string | null;
     message: string | null;
+    retryAfterMs: number | null;
 }
 export interface IdentifyOptions {
     provider: MetadataProvider;
@@ -27,7 +29,10 @@ export interface IdentifyOptions {
 }
 
 function skip(gameId: number, message: string): MatchGameResult {
-    return { gameId, outcome: "skipped", fromCache: false, candidateCount: 0, appliedTitle: null, message };
+    return {
+        gameId, outcome: "skipped", fromCache: false, candidateCount: 0,
+        appliedTitle: null, message, retryAfterMs: null,
+    };
 }
 
 export async function identifyGame(
@@ -49,22 +54,27 @@ export async function identifyGame(
             md5: gameFiles.md5,
             crc32: gameFiles.crc32,
             sizeBytes: gameFiles.sizeBytes,
+            isFixture: gameFiles.isFixture,
         })
         .from(gameFiles)
         .where(
             and(
                 eq(gameFiles.gameId, gameId),
                 eq(gameFiles.present, true),
-                eq(gameFiles.isFixture, false),
                 eq(gameFiles.fileRole, "primary"),
             ),
         )
         .all();
+    const usable = files.filter((entry) => !entry.isFixture);
     const file =
-        files.find((entry) => entry.sha1 !== null) ??
-        files.find((entry) => entry.md5 !== null) ??
-        files.find((entry) => entry.crc32 !== null);
-    if (file === undefined) return skip(gameId, "No hashed file to identify. Run a scan.");
+        usable.find((entry) => entry.sha1 !== null) ??
+        usable.find((entry) => entry.md5 !== null) ??
+        usable.find((entry) => entry.crc32 !== null);
+    if (file === undefined) {
+        if (files.length === 0) return skip(gameId, "No file present. Run a scan.");
+        if (usable.length === 0) return skip(gameId, "Fixture file; never sent to a provider.");
+        return skip(gameId, "No checksums yet. Run: pnpm scan --mode hashes-only");
+    }
     const chosen = chooseLookupHash(file);
     if (chosen === null) return skip(gameId, "No usable checksum.");
     const input: HashMatchInput = {
@@ -88,10 +98,11 @@ export async function identifyGame(
             return {
                 gameId, outcome: "error", fromCache: true, candidateCount: 0, appliedTitle: null,
                 message: `Cached provider error: ${cached.errorMessage ?? "unknown"}`,
+                retryAfterMs: null,
             };
         }
         if (cached.status === "not_found") {
-            return { gameId, outcome: "not_found", fromCache: true, candidateCount: 0, appliedTitle: null, message: null };
+            return { gameId, outcome: "not_found", fromCache: true, candidateCount: 0, appliedTitle: null, message: null, retryAfterMs: null };
         }
         candidates = options.provider.normalizeCached(cached.payload, input);
     } else {
@@ -103,13 +114,18 @@ export async function identifyGame(
                 now,
             );
             if (result.status === "not_found") {
-                return { gameId, outcome: "not_found", fromCache: false, candidateCount: 0, appliedTitle: null, message: null };
+                return { gameId, outcome: "not_found", fromCache: false, candidateCount: 0, appliedTitle: null, message: null, retryAfterMs: null };
             }
             candidates = result.candidates;
         } catch (error) {
             const message = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error.";
-            writeLookup(db, key, { status: "error", errorMessage: message }, now);
-            return { gameId, outcome: "error", fromCache: false, candidateCount: 0, appliedTitle: null, message };
+            const retryAfterMs =
+                error instanceof MetadataProviderError ? error.retryAfterMs : null;
+            writeLookup(db, key, { status: "error", errorMessage: message, ttlMs: retryAfterMs }, now);
+            return {
+                gameId, outcome: "error", fromCache: false, candidateCount: 0,
+                appliedTitle: null, message, retryAfterMs,
+            };
         }
     }
     return persist(db, game.id, game.platformSlug, candidates, fromCache, now);
@@ -197,6 +213,7 @@ function persist(
         candidateCount: candidates.length,
         appliedTitle,
         message: null,
+        retryAfterMs: null,
     };
 }
 

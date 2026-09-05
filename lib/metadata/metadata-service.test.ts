@@ -100,7 +100,7 @@ describe("runMetadataPass", () => {
     });
     it("skips games already matched", async () => {
         addGame("alpha", "nes", "a".repeat(40));
-        const provider = fakeProvider((sha1) => {
+        const provider = fakeProvider(() => {
             const candidates = [candidateFor("Alpha", "nes")];
             return { status: "matched", candidates, payload: { candidates }, latencyMs: 10 };
         });

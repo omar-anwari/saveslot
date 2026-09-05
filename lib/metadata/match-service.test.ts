@@ -199,15 +199,19 @@ describe("identifyGame", () => {
         const provider = fakeProvider(matched([candidate()]));
         const result = await identifyGame(handle.db, gameId, { provider, now });
         expect(result.outcome).toBe("skipped");
+        expect(result.message).toContain("No file present");
         expect(provider.calls).toBe(0);
     });
+
     it("never sends a fixture to a provider", async () => {
         addFile({ isFixture: true });
         const provider = fakeProvider(matched([candidate()]));
         const result = await identifyGame(handle.db, gameId, { provider, now });
         expect(result.outcome).toBe("skipped");
+        expect(result.message).toContain("Fixture");
         expect(provider.calls).toBe(0);
     });
+
     it("upserts rather than duplicating on a repeat run", async () => {
         addFile();
         const provider = fakeProvider(matched([candidate()]));

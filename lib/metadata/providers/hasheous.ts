@@ -14,16 +14,33 @@ import {
 } from "../types.ts";
 
 export const HASHEOUS_KEY = "hasheous";
-
 export class MetadataProviderError extends Error {
+    readonly providerKey: string;
+    readonly status: number | null;
+    readonly retryAfterMs: number | null;
     constructor(
         message: string,
-        readonly providerKey: string,
-        readonly status: number | null,
+        providerKey: string,
+        status: number | null,
+        retryAfterMs: number | null = null,
     ) {
         super(message);
         this.name = "MetadataProviderError";
+        this.providerKey = providerKey;
+        this.status = status;
+        this.retryAfterMs = retryAfterMs;
     }
+}
+export const DEFAULT_BACKOFF_MS = 60_000;
+
+function parseRetryAfter(header: string | null): number | null {
+    if (header === null) return null;
+    const trimmed = header.trim();
+    const seconds = Number.parseInt(trimmed, 10);
+    if (String(seconds) === trimmed && seconds >= 0) return seconds * 1000;
+    const at = Date.parse(trimmed);
+    if (Number.isNaN(at)) return null;
+    return Math.max(0, at - Date.now());
 }
 
 export interface HasheousOptions {
@@ -194,10 +211,14 @@ export function createHasheousProvider(options: HasheousOptions): MetadataProvid
                 return { status: "not_found", candidates: [], payload: null, latencyMs };
             }
             if (!response.ok) {
+                const throttled = response.status === 429 || response.status === 503;
                 throw new MetadataProviderError(
                     `Hasheous lookup failed with HTTP ${response.status}.`,
                     HASHEOUS_KEY,
                     response.status,
+                    throttled
+                        ? parseRetryAfter(response.headers.get("retry-after")) ?? DEFAULT_BACKOFF_MS
+                        : null,
                 );
             }
             const payload: unknown = await response.json();
@@ -219,6 +240,8 @@ function toCandidate(
     const rom = data.signature?.rom;
     const game = data.signature?.game;
     const reasons: MatchReason[] = [];
+    const sizeAgrees = input.fileSize !== null && rom?.size === input.fileSize;
+    let sizeFolded = false;
     let score: number;
     if (sameHash(input.sha1, rom?.sha1, 40)) {
         score = 1;
@@ -227,8 +250,22 @@ function toCandidate(
         score = 0.99;
         reasons.push({ code: "hash.md5", delta: 0.99, detail: "MD5 matches the signature exactly." });
     } else if (sameHash(input.crc32, rom?.crc, 8)) {
-        score = 0.9;
-        reasons.push({ code: "hash.crc32", delta: 0.9, detail: "CRC32 matches; CRC32 collisions are possible." });
+        if (sizeAgrees) {
+            score = 0.98;
+            sizeFolded = true;
+            reasons.push({
+                code: "hash.crc32+size",
+                delta: 0.98,
+                detail: "CRC32 and exact byte size match; this signature carries no stronger digest.",
+            });
+        } else {
+            score = 0.9;
+            reasons.push({
+                code: "hash.crc32",
+                delta: 0.9,
+                detail: "CRC32 matches but the size could not be corroborated.",
+            });
+        }
     } else {
         score = 0.8;
         reasons.push({
@@ -258,8 +295,8 @@ function toCandidate(
     } else {
         reasons.push({ code: "platform.agree", delta: 0, detail: `Platform ${platformSlug} agrees.` });
     }
-    if (input.fileSize !== null && rom?.size === input.fileSize) {
-        reasons.push({ code: "size.agree", delta: 0, detail: `Size agrees at ${rom.size} bytes.` });
+    if (sizeAgrees && !sizeFolded) {
+        reasons.push({ code: "size.agree", delta: 0, detail: `Size agrees at ${rom?.size} bytes.` });
     }
     const title =
         nonEmpty(game?.name) ?? nonEmpty(data.name) ?? nonEmpty(rom?.name)?.replace(/\.[a-z0-9]+$/i, "");
