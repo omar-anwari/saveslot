@@ -60,6 +60,19 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
     return copy.buffer;
 }
 
+const CLIENT_ID_KEY = "saveslot.clientId";
+function clientId(): string {
+    try {
+        const existing = localStorage.getItem(CLIENT_ID_KEY);
+        if (existing) return existing;
+        const created = crypto.randomUUID();
+        localStorage.setItem(CLIENT_ID_KEY, created);
+        return created;
+    } catch {
+        return crypto.randomUUID();
+    }
+}
+
 async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
     const digest = await crypto.subtle.digest("SHA-256", buffer);
     return [...new Uint8Array(digest)]
@@ -84,6 +97,8 @@ export function Emulator({
         initialSave?.checksumSha256 ?? null,
     );
     const busy = useRef(false);
+    const sessionId = useRef<string | null>(null);
+    const sessionStarted = useRef(false);
     const syncBlocked = useRef(false);
     const [state, setState] = useState<SyncState>({ kind: "booting" });
     const [quitting, setQuitting] = useState(false);
@@ -263,6 +278,27 @@ export function Emulator({
             try {
                 await adapter.waitUntilReady();
                 window.dispatchEvent(new Event("resize"));
+                try {
+                    setStatesSupported(adapter.supportsStates());
+                } catch {
+                    setStatesSupported(false);
+                }
+                void refreshStates();
+                if (!sessionStarted.current) {
+                    sessionStarted.current = true;
+                    try {
+                        const response = await fetch(`/api/games/${gameSlug}/sessions/start`, {
+                            method: "POST",
+                            headers: { "content-type": "application/json" },
+                            body: JSON.stringify({ core, clientId: clientId() }),
+                        });
+                        if (response.ok) {
+                            const data = (await response.json()) as { sessionId: string };
+                            sessionId.current = data.sessionId;
+                        }
+                    } catch {
+                    }
+                }
             } catch {
                 if (!cancelled) {
                     setState({ kind: "failed", message: "The emulator failed to start." });
@@ -347,11 +383,28 @@ export function Emulator({
             }, saveIntervalMs);
         }
         void begin();
+        const beat = setInterval(() => {
+            const id = sessionId.current;
+            if (!id || document.visibilityState !== "visible") return;
+            void fetch(`/api/sessions/${id}/heartbeat`, { method: "POST" }).then((response) => {
+                if (response.status === 404) sessionId.current = null;
+            },
+            );
+        }, 30_000);
+        const onPageHide = () => {
+            const id = sessionId.current;
+            if (!id) return;
+            navigator.sendBeacon(`/api/sessions/${id}/end?reason=navigation`);
+            sessionId.current = null;
+        };
+        window.addEventListener("pagehide", onPageHide);
         return () => {
             cancelled = true;
             if (timer) clearInterval(timer);
+            clearInterval(beat);
+            window.removeEventListener("pagehide", onPageHide);
         };
-    }, [initialSave, pushSave, refreshStates, saveIntervalMs]);
+    }, [initialSave, pushSave, refreshStates, saveIntervalMs, core, gameSlug]);
     async function saveAndQuit() {
         setQuitting(true);
         setState({ kind: "syncing" });
@@ -359,6 +412,13 @@ export function Emulator({
         if (adapter) await adapter.pause();
         const result = await pushSave("quit");
         setState(result);
+        const session = sessionId.current;
+        if (session) {
+            sessionId.current = null;
+            await fetch(`/api/sessions/${session}/end?reason=save_and_quit`, {
+                method: "POST",
+            }).catch(() => undefined);
+        }
         if (result.kind === "failed" || result.kind === "conflict") {
             if (adapter) await adapter.resume();
             setQuitting(false);
