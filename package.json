@@ -19,6 +19,8 @@
     "db:seed": "node --env-file-if-exists=.env.local --conditions=react-server db/seed.ts",
     "scan": "node --env-file-if-exists=.env.local --conditions=react-server scripts/scan.ts",
     "fixtures": "node --env-file-if-exists=.env.local --conditions=react-server scripts/create-dev-fixtures.ts",
+    "doctor": "node --env-file-if-exists=.env.local --conditions=react-server scripts/doctor.ts",
+    "setup:local": "node --env-file-if-exists=.env.local --conditions=react-server scripts/setup-local.ts",
     "emulatorjs:sync": "node --env-file-if-exists=.env.local --conditions=react-server scripts/emulatorjs-sync.ts",
     "emulatorjs:check": "node --env-file-if-exists=.env.local --conditions=react-server scripts/emulatorjs-sync.ts --check",
     "test": "vitest run",

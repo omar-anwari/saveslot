@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { PLATFORM_REGISTRY } from "../lib/platforms/registry.ts";
 import { db, sqlite } from "./client.ts";
 import { platforms } from "./schema.ts";
+import { pathToFileURL } from "node:url";
 
 export function seedPlatforms(): { inserted: number; updated: number } {
     const now = new Date();
@@ -51,8 +52,13 @@ export function seedPlatforms(): { inserted: number; updated: number } {
     return { inserted, updated };
 }
 
-const result = seedPlatforms();
-console.log(
-    `Platform seed complete: ${result.inserted} inserted, ${result.updated} updated.`,
-);
-sqlite.close();
+if (
+    process.argv[1] &&
+    import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+    const result = seedPlatforms();
+    console.log(
+        `Platform seed complete: ${result.inserted} inserted, ${result.updated} updated.`,
+    );
+    sqlite.close();
+}
