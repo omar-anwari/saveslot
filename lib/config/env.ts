@@ -1,34 +1,18 @@
-// This is a server only config that's validated once at the first import
 import "server-only";
 import { z } from "zod";
 import path from "node:path";
 
-// Relative paths in .env resolve from the repo's root
-// During dev this'll be the the directory where next dev was run
-// In the docker image, it's the app's working directory
 const REPO_ROOT = process.cwd();
-
-// Hash algorithms that the scanner computes
 const HASH_ALGORITHMS = ["crc32", "md5", "sha1"] as const;
 type HashAlgorithm = (typeof HASH_ALGORITHMS)[number];
-
-// Accepted spellings for boolean environment variables
 const TRUTHY = new Set(["true", "1", "yes", "on", "y", "enabled"]);
 const FALSY = new Set(["false", "0", "no", "off", "n", "disabled"]);
-
-// Version strings that won't be used for releases
 const FLOATING_VERSIONS = new Set(["latest", "nightly", "main", "master", "canary"]);
-
-// Placeholder Secret CHANGE IN PROD
 const SESSION_SECRET_PLACEHOLDER = "REPLACE_WITH_LONG_RANDOM_STRING";
-
 const EnvSchema = z.object({
-    // Core Paths
     ROM_LIBRARY_PATH: z.string().min(1).default("./dev-library"),
     APP_DATA_PATH: z.string().min(1).default("./dev-data"),
     DATABASE_URL: z.string().min(1).default("./dev-data/app.sqlite"),
-
-    // The app
     APP_URL: z
         .string()
         .default("http://localhost:3000")
@@ -36,27 +20,33 @@ const EnvSchema = z.object({
     APP_NAME: z.string().min(1).default("SaveSlot"),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-
-    // Optional password and session secret
     APP_PASSWORD: z.string().default(""),
     SESSION_SECRET: z.string().default(""),
-
-    // Metadata from Hasheous, IGDB, Screenscraper
     HASHEOUS_ENABLED: z.string().default("true"),
+    HASHEOUS_BASE_URL: z
+        .string()
+        .default("https://hasheous.org")
+        .refine((value) => {
+            if (!URL.canParse(value)) return false;
+            const protocol = new URL(value).protocol;
+            return protocol === "https:" || protocol === "http:";
+        }, "HASHEOUS_BASE_URL must be an http or https URL."),
     IGDB_CLIENT_ID: z.string().default(""),
     IGDB_CLIENT_SECRET: z.string().default(""),
     SCREENSCRAPER_USERNAME: z.string().default(""),
     SCREENSCRAPER_PASSWORD: z.string().default(""),
     SCREENSCRAPER_DEV_ID: z.string().default(""),
     SCREENSCRAPER_DEV_PASSWORD: z.string().default(""),
-
-    // Scanning
     SCAN_HASH_ALGORITHMS: z.string().default("crc32,md5,sha1"),
     SCAN_CONCURRENCY: z.coerce.number().int().positive().max(32).default(2),
     METADATA_CONCURRENCY: z.coerce.number().int().positive().max(16).default(1),
     METADATA_REQUEST_DELAY_MS: z.coerce.number().int().nonnegative().default(250),
-
-    // EmulatorJS
+    METADATA_REQUEST_TIMEOUT_MS: z.coerce
+        .number()
+        .int()
+        .positive()
+        .max(120_000)
+        .default(60_000),
     EMULATORJS_VERSION: z.string().default(""),
     EMULATORJS_DATA_PATH: z.string().min(1).default("/emulatorjs/data/"),
     EMULATORJS_FIXED_SAVE_INTERVAL_MS: z.coerce
@@ -65,14 +55,10 @@ const EnvSchema = z.object({
         .positive()
         .default(15000),
     EMULATORJS_THREADS: z.enum(["auto", "on", "off"]).default("auto"),
-
-    // Uploading
     MAX_SAVE_BYTES: z.coerce.number().int().positive().default(16777216), // 16MB
     MAX_STATE_BYTES: z.coerce.number().int().positive().default(536870912), // 512MB
     SAVE_HISTORY_LIMIT: z.coerce.number().int().positive().default(10),
     STATE_HISTORY_LIMIT: z.coerce.number().int().positive().default(25),
-
-    // DEV/TESTING SHIT
     ALLOW_FAKE_ROM_FIXTURES: z.string().default("false"),
 });
 
@@ -108,7 +94,6 @@ function parseHashAlgorithms(value: string): HashAlgorithm[] {
         .split(",")
         .map((part) => part.trim().toLowerCase())
         .filter((part) => part.length > 0);
-
     const unsupported = requested.filter((part) => !isHashAlgorithm(part));
     if (unsupported.length > 0) {
         configError(
@@ -116,7 +101,6 @@ function parseHashAlgorithms(value: string): HashAlgorithm[] {
             `Supported: ${HASH_ALGORITHMS.join(", ")}.`,
         );
     }
-
     const supported = requested.filter(isHashAlgorithm);
     if (supported.length === 0) {
         configError("SCAN_HASH_ALGORITHMS must name at least one algorithm.");
@@ -124,7 +108,6 @@ function parseHashAlgorithms(value: string): HashAlgorithm[] {
     return supported;
 }
 
-// Cross field rules since Zod can't express field by field
 const emulatorJsVersion = raw.EMULATORJS_VERSION ?? "";
 if (
     emulatorJsVersion.length > 0 &&
@@ -153,7 +136,6 @@ if (appPasswordEnabled) {
     }
 }
 
-// Resolve a configured path to an absolute one without touching anything
 function resolveFromRoot(value: string): string {
     return path.isAbsolute(value)
         ? value

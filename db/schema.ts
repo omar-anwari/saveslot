@@ -348,6 +348,77 @@ export const playSessions = sqliteTable(
   ],
 );
 
+export const METADATA_LOOKUP_STATUSES = ["matched", "not_found", "error"] as const;
+export const METADATA_MATCH_TYPES = ["hash", "title"] as const;
+export const metadataLookups = sqliteTable(
+  "metadata_lookups",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    providerKey: text("provider_key").notNull(),
+    hashAlgorithm: text("hash_algorithm").notNull(),
+    hashValue: text("hash_value").notNull(),
+    status: text("status", { enum: METADATA_LOOKUP_STATUSES }).notNull(),
+    responseJson: text("response_json", { mode: "json" }).$type<unknown>(),
+    errorMessage: text("error_message"),
+    latencyMs: integer("latency_ms"),
+    fetchedAt: integer("fetched_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    expiresAt: integer("expires_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    uniqueIndex("metadata_lookups_key_idx").on(
+      table.providerKey,
+      table.hashAlgorithm,
+      table.hashValue,
+    ),
+    index("metadata_lookups_expires_idx").on(table.expiresAt),
+  ],
+);
+
+export const metadataCandidates = sqliteTable(
+  "metadata_candidates",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    providerKey: text("provider_key").notNull(),
+    providerGameId: text("provider_game_id").notNull(),
+    score: real("score").notNull(),
+    matchType: text("match_type", { enum: METADATA_MATCH_TYPES }).notNull(),
+    platformSlug: text("platform_slug"),
+    title: text("title").notNull(),
+    metadataJson: text("metadata_json", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    reasonsJson: text("reasons_json", { mode: "json" })
+      .$type<Record<string, unknown>[]>()
+      .notNull()
+      .default([]),
+    isSelected: integer("is_selected", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    uniqueIndex("metadata_candidates_unique_idx").on(
+      table.gameId,
+      table.providerKey,
+      table.providerGameId,
+    ),
+    index("metadata_candidates_score_idx").on(table.gameId, table.score),
+    uniqueIndex("metadata_candidates_one_selected_idx")
+      .on(table.gameId)
+      .where(sql`${table.isSelected} = 1`),
+  ],
+);
+
 export type Save = typeof saves.$inferSelect;
 export type NewSave = typeof saves.$inferInsert;
 export type SaveState = typeof saveStates.$inferSelect;
@@ -362,5 +433,9 @@ export type Game = typeof games.$inferSelect;
 export type NewGame = typeof games.$inferInsert;
 export type GameFile = typeof gameFiles.$inferSelect;
 export type NewGameFile = typeof gameFiles.$inferInsert;
+export type MetadataLookup = typeof metadataLookups.$inferSelect;
+export type NewMetadataLookup = typeof metadataLookups.$inferInsert;
+export type MetadataCandidateRow = typeof metadataCandidates.$inferSelect;
+export type NewMetadataCandidateRow = typeof metadataCandidates.$inferInsert;
 export type Platform = typeof platforms.$inferSelect;
 export type NewPlatform = typeof platforms.$inferInsert;

@@ -26,17 +26,17 @@ capture of the library view to `docs/screenshot.png`, then reference it here.
 
 ## Supported systems
 
-| System | Folder names | Extensions | Core |
-| --- | --- | --- | --- |
-| Nintendo Entertainment System | nes, famicom, fc | .nes .zip | fceumm |
-| Super Nintendo | snes, sfc, superfamicom | .sfc .smc .zip | snes9x |
-| Game Boy | gb, gameboy | .gb .zip | gambatte |
-| Game Boy Color | gbc, gameboycolor | .gbc .zip | gambatte |
-| Game Boy Advance | gba, gameboyadvance | .gba .zip | mgba |
-| Sega Master System | mastersystem, sms | .sms .zip | smsplus |
-| Sega Genesis / Mega Drive | genesis, megadrive, md | .md .gen .bin .zip | genesis_plus_gx |
-| Sega Game Gear | gamegear, gg | .gg .zip | genesis_plus_gx |
-| Nintendo 64 | n64, nintendo64 | .z64 .n64 .v64 .zip | mupen64plus_next |
+| System                        | Folder names            | Extensions          | Core             |
+| ----------------------------- | ----------------------- | ------------------- | ---------------- |
+| Nintendo Entertainment System | nes, famicom, fc        | .nes .zip           | fceumm           |
+| Super Nintendo                | snes, sfc, superfamicom | .sfc .smc .zip      | snes9x           |
+| Game Boy                      | gb, gameboy             | .gb .zip            | gambatte         |
+| Game Boy Color                | gbc, gameboycolor       | .gbc .zip           | gambatte         |
+| Game Boy Advance              | gba, gameboyadvance     | .gba .zip           | mgba             |
+| Sega Master System            | mastersystem, sms       | .sms .zip           | smsplus          |
+| Sega Genesis / Mega Drive     | genesis, megadrive, md  | .md .gen .bin .zip  | genesis_plus_gx  |
+| Sega Game Gear                | gamegear, gg            | .gg .zip            | genesis_plus_gx  |
+| Nintendo 64                   | n64, nintendo64         | .z64 .n64 .v64 .zip | mupen64plus_next |
 
 Nintendo 64 is marked experimental and has not been tested in a browser.
 PlayStation, multi-disc games and BIOS handling are out of scope for now.
@@ -179,10 +179,23 @@ stage.
 
 **Not implemented as a command.** `pnpm db:backup` does not exist yet.
 
-To back up by hand, stop the server first so SQLite is not mid-write, then
-copy:
+To back up by hand, do **not** just copy `app.sqlite`. The database runs in
+WAL mode, so recent commits live in `app.sqlite-wal` until a checkpoint folds
+them in — and a checkpoint may not have happened for days. Copying the main
+file alone silently produces a backup that is missing your latest work, with
+no error to tell you.
 
-- `dev-data/app.sqlite` — the catalogue
+Use SQLite's own backup, which reads through the WAL:
+
+````bash
+sqlite3 dev-data/app.sqlite ".backup 'backup/app.sqlite'"
+
+Or, with the server stopped, copy all three files together —
+app.sqlite, app.sqlite-wal and app.sqlite-shm.
+
+Then copy:
+
+- backup/app.sqlite — the catalogue
 - `dev-data/saves/` and `dev-data/states/` — your progress
 - `.env.local` — configuration, but note it may contain credentials
 
@@ -196,7 +209,7 @@ into `public/emulatorjs/`, which is not committed.
 ```bash
 pnpm run emulatorjs:check    # is the pinned version installed?
 pnpm run emulatorjs:sync     # install it
-```
+````
 
 The sync script refuses floating versions like `latest`, and verifies the
 download against the checksum GitHub publishes for the release.

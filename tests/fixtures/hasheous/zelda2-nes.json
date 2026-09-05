@@ -1,0 +1,697 @@
+{
+  "id": 605483,
+  "name": "Zelda 2 - The Adventure Of Link",
+  "platform": {
+    "name": "Nintendo Entertainment System",
+    "metadata": [
+      {
+        "objectType": "Platform",
+        "id": "18",
+        "immutableId": "18",
+        "status": "Mapped",
+        "matchMethod": "ManualByAdmin",
+        "source": "IGDB",
+        "link": "https://www.igdb.com/platforms/nes",
+        "lastSearch": "2024-04-29T04:15:22",
+        "nextSearch": "2024-05-29T04:15:22",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "7",
+        "immutableId": "7",
+        "status": "Mapped",
+        "matchMethod": "ManualByAdmin",
+        "source": "TheGamesDb",
+        "link": "https://thegamesdb.net/platform.php?id=7",
+        "lastSearch": "2024-12-12T01:24:04",
+        "nextSearch": "2025-01-12T01:24:04",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "7",
+        "immutableId": "7",
+        "status": "Mapped",
+        "matchMethod": "ManualByAdmin",
+        "source": "RetroAchievements",
+        "link": "https://retroachievements.org/system/7/games",
+        "lastSearch": "2025-05-12T23:58:47",
+        "nextSearch": "2025-06-12T23:58:47",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "21",
+        "immutableId": "21",
+        "status": "Mapped",
+        "matchMethod": "Automatic",
+        "source": "GiantBomb",
+        "link": "https://www.giantbomb.com/platforms/3045-21/",
+        "lastSearch": "2026-05-09T13:08:38",
+        "nextSearch": "2027-02-15T13:08:38",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "Steam",
+        "link": "",
+        "lastSearch": "2026-05-09T13:08:38",
+        "nextSearch": "2026-09-20T13:08:38",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "GOG",
+        "link": "",
+        "lastSearch": "2026-05-09T13:08:38",
+        "nextSearch": "2026-09-20T13:08:38",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "EpicGameStore",
+        "link": "",
+        "lastSearch": "2026-05-09T13:08:38",
+        "nextSearch": "2026-09-20T13:08:38",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "https://en.wikipedia.org/wiki/Nintendo_Entertainment_System",
+        "immutableId": "https://en.wikipedia.org/wiki/Nintendo_Entertainment_System",
+        "status": "Mapped",
+        "matchMethod": "ManualByAdmin",
+        "source": "Wikipedia",
+        "link": "https://en.wikipedia.org/wiki/Nintendo_Entertainment_System",
+        "lastSearch": "2025-12-21T10:26:36",
+        "nextSearch": "2026-01-21T10:26:36",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "5321195",
+        "immutableId": "5321195",
+        "status": "Mapped",
+        "matchMethod": "Automatic",
+        "source": "SteamGridDb",
+        "link": "https://www.steamgriddb.com/game/5321195",
+        "lastSearch": "2026-05-09T13:08:38",
+        "nextSearch": "2027-02-15T13:08:38",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "3",
+        "immutableId": "3",
+        "status": "Mapped",
+        "matchMethod": "Automatic",
+        "source": "ScreenScraper",
+        "link": "https://www.screenscraper.fr/systemeinfos.php?plateforme=3",
+        "lastSearch": "2026-05-09T13:08:38",
+        "nextSearch": "2027-02-15T13:08:38",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Platform",
+        "id": "27-nintendo-entertainment-system",
+        "immutableId": "27-nintendo-entertainment-system",
+        "status": "Mapped",
+        "matchMethod": "ManualByAdmin",
+        "source": "LaunchBox",
+        "link": "https://gamesdb.launchbox-app.com/platforms/games/27-nintendo-entertainment-system",
+        "lastSearch": "2026-02-24T09:49:06",
+        "nextSearch": "2026-04-24T09:49:06",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      }
+    ]
+  },
+  "publisher": {
+    "name": "Nintendo",
+    "metadata": [
+      {
+        "objectType": "Company",
+        "id": "70",
+        "immutableId": "70",
+        "status": "Mapped",
+        "matchMethod": "Automatic",
+        "source": "IGDB",
+        "link": "https://www.igdb.com/companies/nintendo",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-12-04T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "TheGamesDb",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "RetroAchievements",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "GiantBomb",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "Steam",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "GOG",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "EpicGameStore",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "Wikipedia",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "SteamGridDb",
+        "link": "",
+        "lastSearch": "2026-03-18T07:08:26",
+        "nextSearch": "2026-07-21T07:08:26",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "ScreenScraper",
+        "link": "",
+        "lastSearch": "2026-01-03T13:05:33",
+        "nextSearch": "2026-03-03T13:05:33",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      },
+      {
+        "objectType": "Company",
+        "id": "",
+        "immutableId": "",
+        "status": "NotMapped",
+        "matchMethod": "NoMatch",
+        "source": "LaunchBox",
+        "link": "",
+        "lastSearch": "2026-02-24T09:48:39",
+        "nextSearch": "2026-04-24T09:48:39",
+        "winningVoteCount": 0,
+        "totalVoteCount": 0,
+        "winningVotePercent": 0
+      }
+    ]
+  },
+  "signature": {
+    "game": {
+      "countries": {
+        "EU": "Europe",
+        "US": "United States",
+        "ss": ""
+      },
+      "languages": {
+        "de": "German",
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "it": "Italian",
+        "pt": "Portuguese"
+      },
+      "systemId": 769,
+      "publisherId": 9071,
+      "metadataSource": 98,
+      "score": 31,
+      "id": "936828",
+      "category": "",
+      "name": "Zelda 2 - The Adventure Of Link",
+      "sortingName": "Zelda 2 - The Adventure Of Link (EU, US, ss)",
+      "description": "",
+      "year": "",
+      "publisher": "Nintendo",
+      "demo": "NotDemo",
+      "system": "NES",
+      "systemVariant": "",
+      "video": "",
+      "country": {
+        "EU": "Europe",
+        "US": "United States",
+        "ss": ""
+      },
+      "language": {
+        "de": "German",
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "it": "Italian",
+        "pt": "Portuguese"
+      },
+      "copyright": "",
+      "roms": [],
+      "flags": {},
+      "romCount": 0
+    },
+    "rom": {
+      "score": 23,
+      "id": "4078180",
+      "name": "Zelda II - The Adventure of Link (E) (V1.1) [!].nes",
+      "size": 262160,
+      "crc": "6f151d25",
+      "md5": "f8f0e28fe9461bae1e99fea3445c0e91",
+      "sha1": "3b6ba84809d4fb581ab0783d200cd1e51457749a",
+      "sha256": "",
+      "status": "",
+      "country": {
+        "eu": "Europe"
+      },
+      "language": {},
+      "developmentStatus": "",
+      "attributes": {
+        "screenscraper.best": 0,
+        "screenscraper.beta": 0,
+        "screenscraper.demo": 0,
+        "screenscraper.hack": 0,
+        "screenscraper.unl": 0
+      },
+      "romType": "Unknown",
+      "romTypeMedia": "",
+      "mediaDetail": {},
+      "mediaLabel": "",
+      "signatureSource": "ScreenScraper"
+    }
+  },
+  "metadata": [
+    {
+      "objectType": "Game",
+      "id": "1025",
+      "immutableId": "1025",
+      "status": "Mapped",
+      "matchMethod": "Automatic",
+      "source": "IGDB",
+      "link": "https://www.igdb.com/games/zelda-ii-the-adventure-of-link",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2027-02-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "2758",
+      "immutableId": "2758",
+      "status": "Mapped",
+      "matchMethod": "Automatic",
+      "source": "TheGamesDb",
+      "link": "https://thegamesdb.net/game.php?id=2758",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2027-02-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "1453",
+      "immutableId": "1453",
+      "status": "Mapped",
+      "matchMethod": "Automatic",
+      "source": "RetroAchievements",
+      "link": "https://retroachievements.org/game/1453",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2027-02-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "16241",
+      "immutableId": "16241",
+      "status": "Mapped",
+      "matchMethod": "Automatic",
+      "source": "GiantBomb",
+      "link": "https://www.giantbomb.com/games/3030-16241/",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2027-02-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "",
+      "immutableId": "",
+      "status": "NotMapped",
+      "matchMethod": "NoMatch",
+      "source": "Steam",
+      "link": "",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2026-07-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "",
+      "immutableId": "",
+      "status": "NotMapped",
+      "matchMethod": "NoMatch",
+      "source": "GOG",
+      "link": "",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2026-07-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "",
+      "immutableId": "",
+      "status": "NotMapped",
+      "matchMethod": "NoMatch",
+      "source": "EpicGameStore",
+      "link": "",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2026-07-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "",
+      "immutableId": "",
+      "status": "NotMapped",
+      "matchMethod": "NoMatch",
+      "source": "Wikipedia",
+      "link": "",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2026-07-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "",
+      "immutableId": "",
+      "status": "NotMapped",
+      "matchMethod": "NoMatch",
+      "source": "SteamGridDb",
+      "link": "",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2026-07-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "1254",
+      "immutableId": "1254",
+      "status": "Mapped",
+      "matchMethod": "Automatic",
+      "source": "ScreenScraper",
+      "link": "https://www.screenscraper.fr/gameinfos.php?gameid=1254",
+      "lastSearch": "2026-04-15T09:17:29",
+      "nextSearch": "2027-02-22T09:17:29",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    },
+    {
+      "objectType": "Game",
+      "id": "",
+      "immutableId": "",
+      "status": "NotMapped",
+      "matchMethod": "NoMatch",
+      "source": "LaunchBox",
+      "link": "",
+      "lastSearch": "2026-02-24T10:38:16",
+      "nextSearch": "2026-04-24T10:38:16",
+      "winningVoteCount": 0,
+      "totalVoteCount": 0,
+      "winningVotePercent": 0
+    }
+  ],
+  "attributes": [
+    {
+      "id": 1236571,
+      "attributeType": "LongString",
+      "attributeName": "AIDescription",
+      "attributeRelationType": "None",
+      "value": "## Zelda II: The Adventure of Link - Synopsis\n\nStep into a Hyrule shrouded in chaos in *Zelda II: The Adventure of Link*, a unique and pivotal entry in *The Legend of Zelda* series. Set after the events of the original game, Link embarks on a perilous quest to break a curse upon Princess Zelda, who slumbers within the North Castle. A grief-stricken prince, regretting his actions, has placed Zelda under an eternal sleep until a hero can restore peace to the land.\n\nThis installment boldly departs from the traditional top-down perspective, introducing side-scrolling action and RPG elements. Explore towns, interact with NPCs, and acquire powerful spells to aid your journey through six challenging palaces. Master new combat techniques and face formidable foes, including a shadowy manifestation of Link himself. \n\n*Zelda II* introduces a magic system with a dedicated gauge, allowing for strategic spellcasting. With limited lives and a unique progression system, this adventure demands skill and perseverance. Ultimately, Link must confront the lingering spirit of Ganon and retrieve the Triforce of Courage to awaken the princess and bring peace back to Hyrule."
+    },
+    {
+      "attributeType": "ImageAttribution",
+      "attributeName": "LogoAttribution",
+      "attributeRelationType": "None",
+      "value": "IGDB"
+    },
+    {
+      "link": "/api/v1/images/2E44FE439793BDC17B2695171B0FBC85043AF2EE",
+      "id": 1235254,
+      "attributeType": "ImageId",
+      "attributeName": "Logo",
+      "attributeRelationType": "None",
+      "value": "2E44FE439793BDC17B2695171B0FBC85043AF2EE"
+    },
+    {
+      "attributeType": "LongString",
+      "attributeName": "SearchAliases",
+      "attributeRelationType": "None",
+      "value": "Zelda 2 - The Adventure Of Link, Zelda 2-The Adventure Of Link, Zelda 2 The Adventure Of Link, Zelda 2: The Adventure Of Link, Zelda II - The Adventure Of Link, Zelda II-The Adventure Of Link, Zelda II The Adventure Of Link, Zelda II: The Adventure Of Link, Zelda Two - The Adventure Of Link, Zelda Two-The Adventure Of Link, Zelda Two The Adventure Of Link, Zelda Two: The Adventure Of Link"
+    },
+    {
+      "attributeType": "EmbeddedList",
+      "attributeName": "Tags",
+      "attributeRelationType": "None",
+      "value": {
+        "GamePerspective": {
+          "type": "GamePerspective",
+          "tags": [
+            {
+              "id": 6935,
+              "text": "2d side-scrolling",
+              "aiGenerated": true
+            },
+            {
+              "id": 9878,
+              "text": "overworld view",
+              "aiGenerated": true
+            },
+            {
+              "id": 827,
+              "text": "top-down",
+              "aiGenerated": true
+            }
+          ]
+        },
+        "GameGenre": {
+          "type": "GameGenre",
+          "tags": [
+            {
+              "id": 920,
+              "text": "action",
+              "aiGenerated": true
+            },
+            {
+              "id": 789,
+              "text": "adventure",
+              "aiGenerated": true
+            },
+            {
+              "id": 921,
+              "text": "rpg",
+              "aiGenerated": true
+            }
+          ]
+        },
+        "GameTheme": {
+          "type": "GameTheme",
+          "tags": [
+            {
+              "id": 926,
+              "text": "fantasy",
+              "aiGenerated": true
+            },
+            {
+              "id": 983,
+              "text": "heroic quest",
+              "aiGenerated": true
+            },
+            {
+              "id": 984,
+              "text": "mythology",
+              "aiGenerated": true
+            }
+          ]
+        },
+        "GameFeature": {
+          "type": "GameFeature",
+          "tags": [
+            {
+              "id": 971,
+              "text": "item collection",
+              "aiGenerated": true
+            },
+            {
+              "id": 1299,
+              "text": "magic system",
+              "aiGenerated": true
+            },
+            {
+              "id": 9031,
+              "text": "spell casting",
+              "aiGenerated": true
+            }
+          ]
+        },
+        "GameGameplay": {
+          "type": "GameGameplay",
+          "tags": [
+            {
+              "id": 990,
+              "text": "linear progression",
+              "aiGenerated": true
+            },
+            {
+              "id": 9122,
+              "text": "sidescrolling",
+              "aiGenerated": true
+            },
+            {
+              "id": 1004,
+              "text": "turn-based combat",
+              "aiGenerated": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "attributeType": "ShortString",
+      "attributeName": "Language",
+      "attributeRelationType": "None",
+      "value": "German, English, Spanish, French, Italian, Portuguese"
+    }
+  ]
+}
