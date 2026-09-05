@@ -31,8 +31,9 @@ interface StateItem {
     id: string;
     label: string | null;
     byteSize: number;
-    isAutoSave: boolean;
+    isAutosave: boolean;
     coreVersion: string | null;
+    hasScreenshot: boolean;
     createdAt: string;
 }
 
@@ -195,6 +196,16 @@ export function Emulator({
                 setState({ kind: "failed", message: "The state could not be saved." });
                 return;
             }
+            const { stateId } = (await response.json()) as { stateId: string };
+            try {
+                const shot = await adapter.captureScreenshot();
+                await fetch(`/api/states/${stateId}/screenshot`, {
+                    method: "POST",
+                    headers: { "content-type": "image/png" },
+                    body: new Blob([toArrayBuffer(shot)]),
+                });
+            } catch {
+            }
             await refreshStates();
             setState({ kind: "synced", at: new Date() });
         } catch (error) {
@@ -251,6 +262,7 @@ export function Emulator({
             adapterRef.current = adapter;
             try {
                 await adapter.waitUntilReady();
+                window.dispatchEvent(new Event("resize"));
             } catch {
                 if (!cancelled) {
                     setState({ kind: "failed", message: "The emulator failed to start." });
@@ -363,7 +375,7 @@ export function Emulator({
     }
     return (
         <>
-            <div id="emulator" className="h-dvh w-dvw" />
+            <div id="emulator" className="h-full w-full" />
             <div
                 aria-live="polite"
                 className="pointer-events-none absolute right-4 top-4 z-50 max-w-xs text-right text-xs text-white/80"
@@ -384,12 +396,26 @@ export function Emulator({
                                     <button
                                         type="button"
                                         onClick={() => void loadState(item.id)}
-                                        className="w-full rounded px-2 py-1.5 text-left text-xs text-white/90 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+                                        className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-xs text-white/90 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
                                     >
-                                        <span className="block">{item.label ?? item.id}</span>
-                                        <span className="block text-white/50">
-                                            {item.isAutoSave ? "Autosave · " : ""}
-                                            {Math.round(item.byteSize / 1024)} KB
+                                        {item.hasScreenshot ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={`/api/states/${item.id}/screenshot`}
+                                                alt=""
+                                                className="h-10 w-14 shrink-0 rounded object-cover"
+                                            />
+                                        ) : (
+                                            <span className="h-10 w-14 shrink-0 rounded bg-white/10" />
+                                        )}
+                                        <span className="min-w-0">
+                                            <span className="block truncate">
+                                                {item.label ?? item.id}
+                                            </span>
+                                            <span className="block text-white/50">
+                                                {item.isAutosave ? "Autosave · " : ""}
+                                                {Math.round(item.byteSize / 1024)} KB
+                                            </span>
                                         </span>
                                     </button>
                                 </li>

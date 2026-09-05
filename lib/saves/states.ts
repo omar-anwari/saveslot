@@ -206,3 +206,25 @@ export async function deleteSaveState(
     }
     return true;
 }
+
+export async function attachScreenshot(
+    db: ScanDatabase,
+    dataRoot: string,
+    stateId: string,
+    upload: TempUpload,
+): Promise<boolean> {
+    const state = getSaveState(db, stateId);
+    if (!state) {
+        await rm(upload.tempPath, { force: true });
+        return false;
+    }
+    const relativePath = screenshotPath(state.gameId, state.coreKey, stateId);
+    const absolutePath = path.resolve(dataRoot, relativePath);
+    await mkdir(path.dirname(absolutePath), { recursive: true });
+    await rename(upload.tempPath, absolutePath);
+    db.update(saveStates)
+        .set({ screenshotRelativePath: relativePath, updatedAt: new Date() })
+        .where(eq(saveStates.id, stateId))
+        .run();
+    return true;
+}

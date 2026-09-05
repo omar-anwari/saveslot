@@ -68,7 +68,7 @@ export default async function PlayerPage({
     }
     const existing = currentSave(db, row.id, game.platform.emulatorCore);
     return (
-        <div className="relative bg-black">
+        <div className="fixed inset-0 overflow-hidden bg-black">
             <a
                 href={`/games/${slug}`}
                 className="absolute left-4 top-4 z-50 rounded bg-black/60 px-3 py-1.5 text-sm text-white/90 backdrop-blur focus-visible:outline-2 focus-visible:outline-white"
