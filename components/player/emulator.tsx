@@ -27,6 +27,15 @@ type SyncState =
     | { kind: "conflict"; message: string }
     | { kind: "failed"; message: string };
 
+interface StateItem {
+    id: string;
+    label: string | null;
+    byteSize: number;
+    isAutoSave: boolean;
+    coreVersion: string | null;
+    createdAt: string;
+}
+
 export interface InitialSave {
     id: number;
     checksumSha256: string;
@@ -77,6 +86,9 @@ export function Emulator({
     const syncBlocked = useRef(false);
     const [state, setState] = useState<SyncState>({ kind: "booting" });
     const [quitting, setQuitting] = useState(false);
+    const [states, setStates] = useState<StateItem[]>([]);
+    const [statesOpen, setStatesOpen] = useState(false);
+    const [statesSupported, setStatesSupported] = useState(false);
     const pushSave = useCallback(
         async (reason: "interval" | "quit"): Promise<SyncState> => {
             const adapter = adapterRef.current;
@@ -154,6 +166,64 @@ export function Emulator({
         },
         [core, gameSlug],
     );
+    const refreshStates = useCallback(async () => {
+        const response = await fetch(
+            `/api/games/${gameSlug}/states?core=${encodeURIComponent(core)}`,
+            { cache: "no-store" },
+        );
+        if (!response.ok) return;
+        const data = (await response.json()) as { states: StateItem[] };
+        setStates(data.states);
+    }, [core, gameSlug]);
+    async function saveState() {
+        const adapter = adapterRef.current;
+        if (!adapter?.ready) return;
+        setState({ kind: "syncing" });
+        try {
+            const bytes = await adapter.readState();
+            const buffer = toArrayBuffer(bytes);
+            const url = new URL(`/api/games/${gameSlug}/states`, window.location.origin);
+            url.searchParams.set("core", core);
+            url.searchParams.set("checksum", await sha256Hex(buffer));
+            if (adapter.coreName) url.searchParams.set("coreVersion", adapter.coreName);
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "content-type": "application/octet-stream" },
+                body: new Blob([buffer]),
+            });
+            if (!response.ok) {
+                setState({ kind: "failed", message: "The state could not be saved." });
+                return;
+            }
+            await refreshStates();
+            setState({ kind: "synced", at: new Date() });
+        } catch (error) {
+            setState({
+                kind: "failed",
+                message: `State capture failed: ${error instanceof Error ? error.message : String(error)
+                    }`,
+            });
+        }
+    }
+    async function loadState(stateId: string) {
+        const adapter = adapterRef.current;
+        if (!adapter?.ready) return;
+        setState({ kind: "syncing" });
+        try {
+            const response = await fetch(`/api/states/${stateId}/content`);
+            if (!response.ok) throw new Error(`download returned ${response.status}`);
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            await adapter.loadState(bytes);
+            setStatesOpen(false);
+            setState({ kind: "idle", message: "State loaded." });
+        } catch (error) {
+            setState({
+                kind: "failed",
+                message: `Loading the state failed: ${error instanceof Error ? error.message : String(error)
+                    }`,
+            });
+        }
+    }
     useEffect(() => {
         if (started.current) return;
         started.current = true;
@@ -238,7 +308,6 @@ export function Emulator({
                         error && typeof error === "object"
                             ? (error as { errno?: unknown }).errno
                             : undefined;
-
                     console.error("[saveslot] restore failed while", step, error);
                     if (!cancelled) {
                         setState({
@@ -252,6 +321,12 @@ export function Emulator({
             } else if (!cancelled) {
                 setState({ kind: "idle", message: "No server save for this game yet." });
             }
+            try {
+                setStatesSupported(adapter.supportsStates());
+            } catch {
+                setStatesSupported(false);
+            }
+            void refreshStates();
             timer = setInterval(() => {
                 if (document.visibilityState !== "visible") return;
                 void pushSave("interval").then((next) => {
@@ -264,7 +339,7 @@ export function Emulator({
             cancelled = true;
             if (timer) clearInterval(timer);
         };
-    }, [initialSave, pushSave, saveIntervalMs]);
+    }, [initialSave, pushSave, refreshStates, saveIntervalMs]);
     async function saveAndQuit() {
         setQuitting(true);
         setState({ kind: "syncing" });
@@ -295,7 +370,54 @@ export function Emulator({
             >
                 <StatusLine state={state} />
             </div>
+            {statesOpen ? (
+                <div className="absolute bottom-20 right-4 z-50 max-h-80 w-80 overflow-y-auto rounded border border-white/20 bg-black/85 p-3 backdrop-blur">
+                    <h2 className="mb-2 text-sm font-medium text-white">Save states</h2>
+                    {states.length === 0 ? (
+                        <p className="text-xs text-white/70">
+                            No states for this core yet. Use Save State to make one.
+                        </p>
+                    ) : (
+                        <ul className="space-y-1">
+                            {states.map((item) => (
+                                <li key={item.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => void loadState(item.id)}
+                                        className="w-full rounded px-2 py-1.5 text-left text-xs text-white/90 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+                                    >
+                                        <span className="block">{item.label ?? item.id}</span>
+                                        <span className="block text-white/50">
+                                            {item.isAutoSave ? "Autosave · " : ""}
+                                            {Math.round(item.byteSize / 1024)} KB
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            ) : null}
             <div className="absolute bottom-4 right-4 z-50 flex gap-2">
+                {statesSupported ? (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => void saveState()}
+                            className="rounded border border-white/40 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        >
+                            Save State
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStatesOpen((open) => !open)}
+                            aria-expanded={statesOpen}
+                            className="rounded border border-white/40 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        >
+                            Load State ({states.length})
+                        </button>
+                    </>
+                ) : null}
                 <button
                     type="button"
                     onClick={() => void saveAndQuit()}
