@@ -25,6 +25,7 @@ export interface RunScanOptions {
     libraryRoot: string;
     mode: ScanMode;
     platformSlug?: string;
+    allowFixtures?: boolean;
     hashConcurrency?: number;
     algorithms?: readonly HashAlgorithm[];
 }
@@ -114,8 +115,23 @@ async function executeScan(
                 context: { relativePath: warning.relativePath },
             });
         }
-        counters.discovered = walk.files.length;
-        for (const batch of chunk(walk.files, BATCH_SIZE)) {
+        const allowFixtures = options.allowFixtures ?? false;
+        const discovered = allowFixtures
+            ? walk.files
+            : walk.files.filter((file) => !file.isFixture);
+        const skippedFixtures = walk.files.length - discovered.length;
+        if (skippedFixtures > 0) {
+            recordScanEvent(db, scanRunId, {
+                level: "info",
+                eventType: "fixture.skipped",
+                message:
+                    `Skipped ${skippedFixtures} generated fixture file(s). ` +
+                    "Set ALLOW_FAKE_ROM_FIXTURES=true to index them.",
+                context: { count: skippedFixtures },
+            });
+        }
+        counters.discovered = discovered.length;
+        for (const batch of chunk(discovered, BATCH_SIZE)) {
             db.transaction((tx) => {
                 for (const file of batch) {
                     const platformId = platformIdBySlug.get(file.platformSlug);
@@ -175,6 +191,7 @@ function upsertFile(
                 sizeBytes: file.sizeBytes,
                 modifiedAtFs: file.modifiedAtFs,
                 present: true,
+                isFixture: file.isFixture,
                 lastSeenScanId: scanRunId,
                 ...(changed ? { crc32: null, md5: null, sha1: null } : {}),
                 updatedAt: new Date(),
@@ -213,6 +230,7 @@ function upsertFile(
             discNumber: parsed.discNumber,
             fileRole: "primary",
             present: true,
+            isFixture: file.isFixture,
             lastSeenScanId: scanRunId,
         })
         .run();

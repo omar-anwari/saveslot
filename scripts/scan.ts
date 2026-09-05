@@ -62,6 +62,7 @@ async function main(): Promise<number> {
             mode,
             platformSlug: values.platform,
             hashConcurrency: env.SCAN_CONCURRENCY,
+            allowFixtures: env.allowFakeRomFixtures,
             algorithms: env.scanHashAlgorithms,
         });
         console.log(

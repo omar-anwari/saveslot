@@ -1,0 +1,1 @@
+ALTER TABLE `game_files` ADD `is_fixture` integer DEFAULT false NOT NULL;

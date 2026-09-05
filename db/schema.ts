@@ -142,6 +142,9 @@ export const gameFiles = sqliteTable(
       .notNull()
       .default("primary"),
     present: integer("present", { mode: "boolean" }).notNull().default(true),
+    isFixture: integer("is_fixture", { mode: "boolean" })
+      .notNull()
+      .default(false),
     lastSeenScanId: text("last_seen_scan_id").references(() => scanRuns.id, {
       onDelete: "set null",
     }),

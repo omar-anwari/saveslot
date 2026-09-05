@@ -1,6 +1,6 @@
 import { readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
-
+import { isFixtureFile } from "./fixtures.ts";
 import { isWithinRoot, toPosixRelative } from "../filesystem/paths.ts";
 import {
     platformForFolderName,
@@ -8,6 +8,7 @@ import {
 } from "../platforms/registry.ts";
 
 export interface DiscoveredFile {
+    isFixture: boolean;
     platformSlug: string;
     relativePath: string;
     fileName: string;
@@ -133,6 +134,7 @@ async function walkDirectory(
         if (extension.length === 0) continue;
         if (!platform.extensions.includes(extension)) continue;
         context.files.push({
+            isFixture: await isFixtureFile(absolute),
             platformSlug: platform.slug,
             relativePath,
             fileName: entry.name,
