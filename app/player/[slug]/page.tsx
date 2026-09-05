@@ -50,6 +50,14 @@ export default async function PlayerPage({
     const primary = game.files.find(
         (file) => file.fileRole === "primary" && file.present,
     );
+    if (game.files.some((file) => file.isFixture)) {
+        return (
+            <Blocked
+                slug={slug}
+                message="Scanner test fixture — not a playable ROM."
+            />
+        );
+    }
     if (!primary) {
         return (
             <Blocked

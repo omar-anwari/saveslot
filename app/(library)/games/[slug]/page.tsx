@@ -35,6 +35,7 @@ export default async function GamePage({
     const game = getGameDetail(db, slug);
     if (!game) notFound();
     const anyPresent = game.files.some((file) => file.present);
+    const isFixture = game.files.some((file) => file.isFixture);
     const facts: Array<[string, string]> = [
         ["Platform", game.platform.name],
         ["Release year", game.releaseYear ? String(game.releaseYear) : "Unknown"],
@@ -72,7 +73,20 @@ export default async function GamePage({
                         {game.platform.name}
                         {game.platform.manufacturer ? ` · ${game.platform.manufacturer}` : ""}
                     </p>
-                    {anyPresent && game.platform.emulatorCore ? (
+                    {isFixture ? (
+                        <div className="mt-5">
+                            <button
+                                type="button"
+                                disabled
+                                className="cursor-not-allowed rounded bg-accent px-5 py-2.5 text-sm font-medium text-accent-contrast opacity-50"
+                            >
+                                Play
+                            </button>
+                            <p className="mt-2 text-sm text-warning">
+                                Scanner test fixture &mdash; not a playable ROM.
+                            </p>
+                        </div>
+                    ) : anyPresent && game.platform.emulatorCore ? (
                         <a
                             href={`/player/${game.slug}`}
                             className="mt-5 inline-block rounded bg-accent px-5 py-2.5 text-sm font-medium text-accent-contrast focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"

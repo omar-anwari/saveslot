@@ -186,6 +186,7 @@ export interface GameFileDetail {
     discNumber: number | null;
     fileRole: string;
     present: boolean;
+    isFixture: boolean;
 }
 
 export interface GameDetail {
@@ -278,6 +279,7 @@ export function getGameDetail(
             discNumber: gameFiles.discNumber,
             fileRole: gameFiles.fileRole,
             present: gameFiles.present,
+            isFixture: gameFiles.isFixture,
         })
         .from(gameFiles)
         .where(eq(gameFiles.gameId, row.id))
