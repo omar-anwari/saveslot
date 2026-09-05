@@ -1,0 +1,1 @@
+ALTER TABLE `game_files` ADD `hashed_entry` text;

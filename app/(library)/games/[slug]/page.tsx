@@ -163,6 +163,13 @@ export default async function GamePage({
                                 {file.discNumber ? ` · disc ${file.discNumber}` : ""} ·{" "}
                                 {file.present ? "present" : "missing"}
                             </p>
+                            {file.hashedEntry ? (
+                                <p className="mt-1 text-xs text-muted">
+                                    Checksums are of{" "}
+                                    <span className="font-mono">{file.hashedEntry}</span> inside
+                                    the archive.
+                                </p>
+                            ) : null}
                             {file.sha1 ? (
                                 <dl className="mt-2 space-y-1 font-mono text-xs text-muted">
                                     <div className="flex gap-3">

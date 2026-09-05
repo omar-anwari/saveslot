@@ -31,7 +31,6 @@ const CRC32_TABLE: Uint32Array = (() => {
 
 export class Crc32 {
     #crc = 0xffffffff;
-
     update(chunk: Uint8Array): void {
         let crc = this.#crc;
         for (let i = 0; i < chunk.length; i += 1) {
@@ -40,7 +39,6 @@ export class Crc32 {
         }
         this.#crc = crc;
     }
-
     digest(): string {
         return ((this.#crc ^ 0xffffffff) >>> 0)
             .toString(16)
@@ -54,35 +52,38 @@ export interface FileHashes {
     sha1: string | null;
 }
 
-export async function hashFile(
-    absolutePath: string,
+export async function hashStream(
+    source: AsyncIterable<Uint8Array>,
     algorithms: readonly HashAlgorithm[] = DEFAULT_ALGORITHMS,
 ): Promise<FileHashes> {
-    const before = await stat(absolutePath);
-
     const crc = algorithms.includes("crc32") ? new Crc32() : null;
     const md5 = algorithms.includes("md5") ? createHash("md5") : null;
     const sha1 = algorithms.includes("sha1") ? createHash("sha1") : null;
-
-    const stream = createReadStream(absolutePath, {
-        highWaterMark: 1024 * 1024,
-    });
-
-    for await (const chunk of stream) {
+    for await (const chunk of source) {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         crc?.update(buffer);
         md5?.update(buffer);
         sha1?.update(buffer);
     }
-
-    const after = await stat(absolutePath);
-    if (after.size !== before.size || after.mtimeMs !== before.mtimeMs) {
-        throw new FileChangedDuringHashError(absolutePath.split("/").pop() ?? "");
-    }
-
     return {
         crc32: crc?.digest() ?? null,
         md5: md5?.digest("hex") ?? null,
         sha1: sha1?.digest("hex") ?? null,
     };
+}
+
+export async function hashFile(
+    absolutePath: string,
+    algorithms: readonly HashAlgorithm[] = DEFAULT_ALGORITHMS,
+): Promise<FileHashes> {
+    const before = await stat(absolutePath);
+    const stream = createReadStream(absolutePath, {
+        highWaterMark: 1024 * 1024,
+    });
+    const hashes = await hashStream(stream, algorithms);
+    const after = await stat(absolutePath);
+    if (after.size !== before.size || after.mtimeMs !== before.mtimeMs) {
+        throw new FileChangedDuringHashError(absolutePath.split("/").pop() ?? "");
+    }
+    return hashes;
 }

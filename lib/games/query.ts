@@ -187,6 +187,7 @@ export interface GameFileDetail {
     fileRole: string;
     present: boolean;
     isFixture: boolean;
+    hashedEntry: string | null;
 }
 
 export interface GameDetail {
@@ -280,6 +281,7 @@ export function getGameDetail(
             fileRole: gameFiles.fileRole,
             present: gameFiles.present,
             isFixture: gameFiles.isFixture,
+            hashedEntry: gameFiles.hashedEntry,
         })
         .from(gameFiles)
         .where(eq(gameFiles.gameId, row.id))
@@ -335,76 +337,76 @@ function baseListQuery(db: ScanDatabase) {
 }
 
 export function continuePlaying(
-  db: ScanDatabase,
-  limit = 12,
+    db: ScanDatabase,
+    limit = 12,
 ): GameListItem[] {
-  return toListItems(
-    baseListQuery(db)
-      .where(
-        and(
-          eq(games.hidden, false),
-          gt(games.totalPlaySeconds, 0),
-          notInArray(games.playStatus, ["completed", "abandoned"]),
-        ),
-      )
-      .orderBy(desc(games.lastPlayedAt))
-      .limit(limit)
-      .all(),
-  );
+    return toListItems(
+        baseListQuery(db)
+            .where(
+                and(
+                    eq(games.hidden, false),
+                    gt(games.totalPlaySeconds, 0),
+                    notInArray(games.playStatus, ["completed", "abandoned"]),
+                ),
+            )
+            .orderBy(desc(games.lastPlayedAt))
+            .limit(limit)
+            .all(),
+    );
 }
 
 export function recentlyAdded(db: ScanDatabase, limit = 12): GameListItem[] {
-  return toListItems(
-    baseListQuery(db)
-      .where(eq(games.hidden, false))
-      .orderBy(desc(games.createdAt), desc(games.id))
-      .limit(limit)
-      .all(),
-  );
+    return toListItems(
+        baseListQuery(db)
+            .where(eq(games.hidden, false))
+            .orderBy(desc(games.createdAt), desc(games.id))
+            .limit(limit)
+            .all(),
+    );
 }
 
 export function favouriteGames(db: ScanDatabase, limit = 12): GameListItem[] {
-  return toListItems(
-    baseListQuery(db)
-      .where(and(eq(games.hidden, false), eq(games.favourite, true)))
-      .orderBy(asc(games.sortTitle))
-      .limit(limit)
-      .all(),
-  );
+    return toListItems(
+        baseListQuery(db)
+            .where(and(eq(games.hidden, false), eq(games.favourite, true)))
+            .orderBy(asc(games.sortTitle))
+            .limit(limit)
+            .all(),
+    );
 }
 
 // Only offer something that can actually be launched.
 export function randomPick(db: ScanDatabase): GameListItem | null {
-  const rows = toListItems(
-    baseListQuery(db)
-      .where(eq(games.hidden, false))
-      .orderBy(sql`random()`)
-      .limit(5)
-      .all(),
-  );
-  return rows.find((row) => row.present) ?? rows[0] ?? null;
+    const rows = toListItems(
+        baseListQuery(db)
+            .where(eq(games.hidden, false))
+            .orderBy(sql`random()`)
+            .limit(5)
+            .all(),
+    );
+    return rows.find((row) => row.present) ?? rows[0] ?? null;
 }
 
 export interface PlatformSummary {
-  slug: string;
-  name: string;
-  gameCount: number;
+    slug: string;
+    name: string;
+    gameCount: number;
 }
 
 export function platformSummaries(db: ScanDatabase): PlatformSummary[] {
-  return db
-    .select({
-      slug: platforms.slug,
-      name: platforms.name,
-      gameCount: sql<number>`count(${games.id})`,
-    })
-    .from(platforms)
-    .leftJoin(
-      games,
-      and(eq(games.platformId, platforms.id), eq(games.hidden, false)),
-    )
-    .where(eq(platforms.enabled, true))
-    .groupBy(platforms.id)
-    .orderBy(asc(platforms.name))
-    .all();
+    return db
+        .select({
+            slug: platforms.slug,
+            name: platforms.name,
+            gameCount: sql<number>`count(${games.id})`,
+        })
+        .from(platforms)
+        .leftJoin(
+            games,
+            and(eq(games.platformId, platforms.id), eq(games.hidden, false)),
+        )
+        .where(eq(platforms.enabled, true))
+        .groupBy(platforms.id)
+        .orderBy(asc(platforms.name))
+        .all();
 }

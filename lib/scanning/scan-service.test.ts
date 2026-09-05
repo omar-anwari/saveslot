@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { gameFiles, games, scanRuns } from "../../db/schema.ts";
+import { gameFiles, games, scanRuns, scanEvents } from "../../db/schema.ts";
 import {
     createTestDatabase,
     seedTestPlatforms,
@@ -224,5 +224,62 @@ describe("fixtures", () => {
             .where(eq(gameFiles.fileName, "Contra (USA).nes"))
             .get();
         expect(file?.isFixture).toBe(false);
+    });
+});
+
+describe("archives", () => {
+    it("hashes the ROM inside a zip, not the zip", async () => {
+        const { makeZip } = await import("../../tests/helpers/make-zip.ts");
+        const { hashFile } = await import("../hashing/file-hashes.ts");
+        const rom = new TextEncoder().encode("NES\u001a inner rom payload");
+        await writeFile(path.join(root, "nes", "loose.nes"), rom);
+        await writeFile(
+            path.join(root, "nes", "Boxed Game (USA).zip"),
+            makeZip([{ name: "Boxed Game (USA).nes", content: rom }]),
+        );
+        await runScan(handle.db, { libraryRoot: root, mode: "full" });
+        const zipped = handle.db
+            .select()
+            .from(gameFiles)
+            .where(eq(gameFiles.fileName, "Boxed Game (USA).zip"))
+            .get();
+        const loose = handle.db
+            .select()
+            .from(gameFiles)
+            .where(eq(gameFiles.fileName, "loose.nes"))
+            .get();
+        expect(zipped?.hashedEntry).toBe("Boxed Game (USA).nes");
+        expect(zipped?.sha1).toBe(loose?.sha1);
+        const archiveHash = await hashFile(
+            path.join(root, "nes", "Boxed Game (USA).zip"),
+        );
+        expect(zipped?.sha1).not.toBe(archiveHash.sha1);
+    });
+    it("falls back and warns when an archive is ambiguous", async () => {
+        const { makeZip } = await import("../../tests/helpers/make-zip.ts");
+        const rom = new TextEncoder().encode("rom");
+        await writeFile(
+            path.join(root, "nes", "Two Roms.zip"),
+            makeZip([
+                { name: "A.nes", content: rom },
+                { name: "B.nes", content: rom },
+            ]),
+        );
+        const result = await runScan(handle.db, { libraryRoot: root, mode: "full" });
+        const file = handle.db
+            .select()
+            .from(gameFiles)
+            .where(eq(gameFiles.fileName, "Two Roms.zip"))
+            .get();
+        expect(file?.hashedEntry).toBeNull();
+        expect(file?.sha1).not.toBeNull();
+        const events = handle.db
+            .select()
+            .from(scanEvents)
+            .where(eq(scanEvents.scanRunId, result.scanRunId))
+            .all();
+        expect(
+            events.some((event) => event.eventType === "archive.not-inspected"),
+        ).toBe(true);
     });
 });

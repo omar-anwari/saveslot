@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne, or, isNull, sql } from "drizzle-orm";
 import { gameFiles, games, platforms } from "../../db/schema.ts";
 import { resolveWithinRoot } from "../filesystem/paths.ts";
-import { DEFAULT_ALGORITHMS, hashFile, type HashAlgorithm } from "../hashing/file-hashes.ts";
+import { DEFAULT_ALGORITHMS, type HashAlgorithm } from "../hashing/file-hashes.ts";
 import { mapWithConcurrency } from "./concurrency.ts";
 import { parseFilename } from "./filename.ts";
 import {
@@ -18,6 +18,7 @@ import {
 } from "./scan-run.ts";
 import { ScanInProgressError, acquireScanLock, currentScanRunId, releaseScanLock } from "./scan-lock.ts";
 import { walkLibrary, type DiscoveredFile } from "./walk.ts";
+import { hashRomFile } from "../hashing/rom-hashes.ts";
 
 const BATCH_SIZE = 200;
 
@@ -303,11 +304,15 @@ async function hashScannedFiles(
         .select({
             id: gameFiles.id,
             relativePath: gameFiles.relativePath,
+            extension: gameFiles.extension,
             crc32: gameFiles.crc32,
             md5: gameFiles.md5,
             sha1: gameFiles.sha1,
+            platformExtensions: platforms.extensionsJson,
         })
         .from(gameFiles)
+        .innerJoin(games, eq(gameFiles.gameId, games.id))
+        .innerJoin(platforms, eq(games.platformId, platforms.id))
         .where(
             scopedIds === null
                 ? eq(gameFiles.present, true)
@@ -323,8 +328,25 @@ async function hashScannedFiles(
     await mapWithConcurrency(targets, concurrency, async (row) => {
         try {
             const absolute = resolveWithinRoot(options.libraryRoot, row.relativePath);
-            const hashes = await hashFile(absolute, algorithms);
-            const update: Record<string, unknown> = { updatedAt: new Date() };
+            const result = await hashRomFile(
+                absolute,
+                row.extension,
+                row.platformExtensions,
+                algorithms,
+            );
+            if (result.warning) {
+                recordScanEvent(db, scanRunId, {
+                    level: "warning",
+                    eventType: "archive.not-inspected",
+                    message: result.warning,
+                    context: { relativePath: row.relativePath },
+                });
+            }
+            const update: Record<string, unknown> = {
+                updatedAt: new Date(),
+                hashedEntry: result.hashedEntry,
+            };
+            const hashes = result.hashes;
             if (hashes.crc32 !== null) update.crc32 = hashes.crc32;
             if (hashes.md5 !== null) update.md5 = hashes.md5;
             if (hashes.sha1 !== null) update.sha1 = hashes.sha1;

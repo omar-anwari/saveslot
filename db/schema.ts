@@ -137,6 +137,7 @@ export const gameFiles = sqliteTable(
     crc32: text("crc32"),
     md5: text("md5"),
     sha1: text("sha1"),
+    hashedEntry: text("hashed_entry"),
     discNumber: integer("disc_number"),
     fileRole: text("file_role", { enum: FILE_ROLES })
       .notNull()
