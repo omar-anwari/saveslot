@@ -1,6 +1,5 @@
 import { asc } from "drizzle-orm";
 import Link from "next/link";
-import { PlaceholderCover } from "@/components/library/placeholder-cover";
 import { db } from "@/db/client";
 import { platforms } from "@/db/schema";
 import { GAME_SORTS, queryGames, type GameSort } from "@/lib/games/query";
