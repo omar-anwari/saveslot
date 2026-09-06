@@ -4,7 +4,11 @@ import { enrichmentCandidate } from "./candidate.ts";
 import type { MetadataDatabase } from "./lookup-cache.ts";
 import { applyToGame } from "./match-service.ts";
 import { MetadataProviderError } from "./provider-error.ts";
-import type { MetadataProvider, NormalizedGameMetadata } from "./types.ts";
+import { chooseBest } from "./title-match.ts";
+import type { MetadataCandidate, MetadataProvider, NormalizedGameMetadata } from "./types.ts";
+
+export const SEARCH_LIMIT = 10;
+export const SEARCH_STORE_LIMIT = 5;
 
 export type EnrichOutcome = "enriched" | "reused" | "skipped" | "not_found" | "error";
 
@@ -63,7 +67,7 @@ export async function enrichGame(
     const now = options.now ?? new Date();
     const source = options.externalSource ?? "IGDB";
     const game = db
-        .select({ id: games.id, platformSlug: platforms.slug })
+        .select({ id: games.id, platformSlug: platforms.slug, releaseYear: games.releaseYear })
         .from(games)
         .innerJoin(platforms, eq(games.platformId, platforms.id))
         .where(eq(games.id, gameId))
@@ -78,78 +82,103 @@ export async function enrichGame(
     if (identity === undefined) {
         return done(gameId, "skipped", "Not identified yet; run the metadata pass first.");
     }
+    if (options.forceRefresh !== true) {
+        const already = db
+            .select()
+            .from(metadataCandidates)
+            .where(
+                and(
+                    eq(metadataCandidates.gameId, gameId),
+                    eq(metadataCandidates.providerKey, options.provider.key),
+                    eq(metadataCandidates.isSelected, true),
+                ),
+            )
+            .get();
+        const stored = already === undefined ? null : readMetadata(already.metadataJson);
+        if (stored !== null) return done(gameId, "reused", null, stored.title);
+    }
     const externalId = externalIdFrom(identity.metadataJson, source);
-    if (externalId === null) {
-        return done(gameId, "skipped", `The ${identity.providerKey} match carries no ${source} id.`);
-    }
-    const stored = db
-        .select()
-        .from(metadataCandidates)
-        .where(
-            and(
-                eq(metadataCandidates.gameId, gameId),
-                eq(metadataCandidates.providerKey, options.provider.key),
-                eq(metadataCandidates.providerGameId, externalId),
-            ),
-        )
-        .get();
-    let metadata: NormalizedGameMetadata | null = null;
-    let reused = false;
-    if (stored !== undefined && options.forceRefresh !== true) {
-        metadata = readMetadata(stored.metadataJson);
-        reused = metadata !== null;
-    }
-    if (metadata === null) {
-        try {
-            metadata = await options.provider.getGame(externalId, options.signal);
-        } catch (error) {
-            const message = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error.";
-            const retryAfterMs = error instanceof MetadataProviderError ? error.retryAfterMs : null;
-            return done(gameId, "error", message, null, retryAfterMs);
+    let toStore: MetadataCandidate[] = [];
+    let chosen: MetadataCandidate | null = null;
+    let rejection: string | null = null;
+    try {
+        if (externalId !== null) {
+            const metadata = await options.provider.getGame(externalId, options.signal);
+            if (metadata === null) return done(gameId, "not_found", `${source} has no game ${externalId}.`);
+            chosen = enrichmentCandidate({
+                providerKey: options.provider.key,
+                providerGameId: externalId,
+                metadata,
+                platformSlug: game.platformSlug,
+                inheritedScore: identity.score,
+                identityProviderKey: identity.providerKey,
+                identityDetail: `Identity from ${identity.providerKey} (${identity.title}), scored ${identity.score.toFixed(2)}.`,
+            });
+            if (chosen.platformSlug === null) {
+                rejection = chosen.reasons.at(-1)?.detail ?? "Platform disagreement.";
+                toStore = [chosen];
+                chosen = null;
+            } else {
+                toStore = [chosen];
+            }
+        } else {
+            const results = await options.provider.searchByTitle(
+                {
+                    title: identity.title,
+                    platformSlug: game.platformSlug,
+                    releaseYear: game.releaseYear,
+                    limit: SEARCH_LIMIT,
+                },
+                options.signal,
+            );
+            toStore = results.slice(0, SEARCH_STORE_LIMIT);
+            if (toStore.length === 0) {
+                return done(gameId, "not_found", `${source} found nothing for "${identity.title}".`);
+            }
+            const best = chooseBest(toStore.map((item) => ({ item, score: item.score })));
+            rejection = best?.rejected ?? "No usable result.";
+            if (best !== null && best.rejected === null) {
+                chosen = best.item;
+                rejection = null;
+            }
         }
-        if (metadata === null) {
-            return done(gameId, "not_found", `${source} has no game ${externalId}.`);
-        }
+    } catch (error) {
+        const message = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error.";
+        const retryAfterMs = error instanceof MetadataProviderError ? error.retryAfterMs : null;
+        return done(gameId, "error", message, null, retryAfterMs);
     }
-    const candidate = enrichmentCandidate({
-        providerKey: options.provider.key,
-        providerGameId: externalId,
-        metadata,
-        platformSlug: game.platformSlug,
-        inheritedScore: identity.score,
-        identityProviderKey: identity.providerKey,
-        identityDetail: `Identity from ${identity.providerKey} (${identity.title}), scored ${identity.score.toFixed(2)}.`,
-    });
     let appliedTitle: string | null = null;
     db.transaction((tx) => {
-        const values = {
-            score: candidate.score,
-            matchType: candidate.matchType,
-            platformSlug: candidate.platformSlug,
-            title: candidate.metadata.title,
-            metadataJson: { ...candidate.metadata },
-            reasonsJson: candidate.reasons.map((reason) => ({ ...reason })),
-            updatedAt: now,
-        };
-        tx.insert(metadataCandidates)
-            .values({
-                gameId,
-                providerKey: candidate.providerKey,
-                providerGameId: candidate.providerGameId,
-                isSelected: false,
-                createdAt: now,
-                ...values,
-            })
-            .onConflictDoUpdate({
-                target: [
-                    metadataCandidates.gameId,
-                    metadataCandidates.providerKey,
-                    metadataCandidates.providerGameId,
-                ],
-                set: values,
-            })
-            .run();
-        if (candidate.platformSlug === null) return;
+        for (const candidate of toStore) {
+            const values = {
+                score: candidate.score,
+                matchType: candidate.matchType,
+                platformSlug: candidate.platformSlug,
+                title: candidate.metadata.title,
+                metadataJson: { ...candidate.metadata },
+                reasonsJson: candidate.reasons.map((reason) => ({ ...reason })),
+                updatedAt: now,
+            };
+            tx.insert(metadataCandidates)
+                .values({
+                    gameId,
+                    providerKey: candidate.providerKey,
+                    providerGameId: candidate.providerGameId,
+                    isSelected: false,
+                    createdAt: now,
+                    ...values,
+                })
+                .onConflictDoUpdate({
+                    target: [
+                        metadataCandidates.gameId,
+                        metadataCandidates.providerKey,
+                        metadataCandidates.providerGameId,
+                    ],
+                    set: values,
+                })
+                .run();
+        }
+        if (chosen === null) return;
         tx.update(metadataCandidates)
             .set({ isSelected: false, updatedAt: now })
             .where(eq(metadataCandidates.gameId, gameId))
@@ -159,15 +188,15 @@ export async function enrichGame(
             .where(
                 and(
                     eq(metadataCandidates.gameId, gameId),
-                    eq(metadataCandidates.providerKey, candidate.providerKey),
-                    eq(metadataCandidates.providerGameId, candidate.providerGameId),
+                    eq(metadataCandidates.providerKey, chosen.providerKey),
+                    eq(metadataCandidates.providerGameId, chosen.providerGameId),
                 ),
             )
             .run();
-        appliedTitle = applyToGame(tx, gameId, candidate, now);
+        appliedTitle = applyToGame(tx, gameId, chosen, now);
     });
-    if (candidate.platformSlug === null) {
-        return done(gameId, "skipped", candidate.reasons.at(-1)?.detail ?? "Platform disagreement.");
+    if (chosen === null) {
+        return done(gameId, "skipped", rejection);
     }
-    return done(gameId, reused ? "reused" : "enriched", null, appliedTitle);
+    return done(gameId, "enriched", null, appliedTitle);
 }

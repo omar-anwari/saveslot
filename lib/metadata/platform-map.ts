@@ -43,6 +43,13 @@ export function resolvePlatformSlug(
     return null;
 }
 
+export function igdbPlatformIdFor(slug: string): number | null {
+    for (const [id, mapped] of SLUG_BY_IGDB_PLATFORM_ID) {
+        if (mapped === slug) return id;
+    }
+    return null;
+}
+
 export function mappedPlatformSlugs(): readonly string[] {
     return [
         ...new Set([

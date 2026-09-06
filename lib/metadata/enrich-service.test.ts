@@ -7,7 +7,7 @@ import {
     type TestDatabaseHandle,
 } from "../../tests/helpers/test-db.ts";
 import { enrichGame } from "./enrich-service.ts";
-import type { MetadataProvider, NormalizedGameMetadata } from "./types.ts";
+import type { MetadataCandidate, MetadataProvider, NormalizedGameMetadata, TitleSearchInput } from "./types.ts";
 
 let handle: TestDatabaseHandle;
 let gameId = 0;
@@ -33,22 +33,45 @@ function igdbMetadata(overrides: Partial<NormalizedGameMetadata> = {}): Normaliz
     };
 }
 
-function fakeProvider(result: NormalizedGameMetadata | null | Error) {
+function fakeProvider(
+    result: NormalizedGameMetadata | null | Error,
+    searchResults: MetadataCandidate[] = [],
+) {
     const getGame = vi.fn(async (_id: string, _signal?: AbortSignal) => {
         if (result instanceof Error) throw result;
         return result;
     });
+    const searchByTitle = vi.fn(async (_input: TitleSearchInput, _signal?: AbortSignal) => {
+        if (result instanceof Error) throw result;
+        return searchResults;
+    });
     return {
         getGame,
+        searchByTitle,
         provider: {
             key: "igdb",
             isConfigured: () => true,
             healthCheck: async () => ({ ok: true, latencyMs: 1, message: "ok" }),
             matchByHashes: async () => ({ status: "not_found" as const, candidates: [], payload: null, latencyMs: 0 }),
             normalizeCached: () => [],
-            searchByTitle: async () => [],
+            searchByTitle,
             getGame,
         } as unknown as MetadataProvider,
+    };
+}
+
+function searchHit(title: string, igdbId: string, score: number): MetadataCandidate {
+    return {
+        providerKey: "igdb",
+        providerGameId: igdbId,
+        score,
+        matchType: "title",
+        reasons: [{ code: "title.exact", delta: 0.65, detail: "Normalized titles are identical." }],
+        platformSlug: "nes",
+        metadata: igdbMetadata({
+            title,
+            externalIds: [{ source: "IGDB", id: igdbId, url: null, confidence: "verified" }],
+        }),
     };
 }
 
@@ -188,12 +211,13 @@ describe("enrichGame", () => {
         expect(result.message).toContain("Not identified");
         expect(getGame).not.toHaveBeenCalled();
     });
-    it("skips when the identity carries no id for this provider", async () => {
+    it("falls back to a title search when the identity carries no id", async () => {
         addIdentity({ metadataJson: { title: "x", platformSlugs: ["nes"], externalIds: [] } });
-        const { provider, getGame } = fakeProvider(igdbMetadata());
+        const { provider, getGame, searchByTitle } = fakeProvider(igdbMetadata());
         const result = await enrichGame(handle.db, gameId, { provider, now });
-        expect(result.outcome).toBe("skipped");
-        expect(result.message).toContain("no IGDB id");
+        expect(result.outcome).toBe("not_found");
+        expect(result.message).toContain("found nothing");
+        expect(searchByTitle).toHaveBeenCalled();
         expect(getGame).not.toHaveBeenCalled();
     });
     it("reports a provider failure with its retry window", async () => {
@@ -206,5 +230,76 @@ describe("enrichGame", () => {
         const result = await enrichGame(handle.db, gameId, { provider, now });
         expect(result.outcome).toBe("error");
         expect(result.message).toContain("rate limit");
+    });
+});
+
+describe("enrichGame by title search", () => {
+    function addIdentityWithoutId(): void {
+        addIdentity({
+            metadataJson: {
+                title: "Legend of Zelda, The: A Link to the Past",
+                platformSlugs: ["nes"],
+                externalIds: [{ source: "ScreenScraper", id: "1254", url: null, confidence: "automatic" }],
+            },
+            title: "Legend of Zelda, The: A Link to the Past",
+        });
+    }
+    it("searches by the DAT title when there is no id", async () => {
+        addIdentityWithoutId();
+        const { provider, searchByTitle, getGame } = fakeProvider(null, [
+            searchHit("The Legend of Zelda: A Link to the Past", "1030", 0.95),
+        ]);
+        const result = await enrichGame(handle.db, gameId, { provider, now });
+        expect(result.outcome).toBe("enriched");
+        expect(getGame).not.toHaveBeenCalled();
+        expect(searchByTitle.mock.calls[0]?.[0]).toMatchObject({
+            title: "Legend of Zelda, The: A Link to the Past",
+            platformSlug: "nes",
+        });
+        expect(handle.db.select().from(games).where(eq(games.id, gameId)).get()?.title)
+            .toBe("The Legend of Zelda: A Link to the Past");
+    });
+    it("stores every plausible result, not just the winner", async () => {
+        addIdentityWithoutId();
+        const { provider } = fakeProvider(null, [
+            searchHit("The Legend of Zelda: A Link to the Past", "1030", 0.95),
+            searchHit("The Legend of Zelda: A Link to the Past Four Swords", "1031", 0.6),
+        ]);
+        await enrichGame(handle.db, gameId, { provider, now });
+        const rows = handle.db
+            .select()
+            .from(metadataCandidates)
+            .where(eq(metadataCandidates.providerKey, "igdb"))
+            .all();
+        expect(rows).toHaveLength(2);
+        expect(rows.filter((row) => row.isSelected)).toHaveLength(1);
+    });
+    it("refuses to choose between two close results", async () => {
+        addIdentityWithoutId();
+        const { provider } = fakeProvider(null, [
+            searchHit("A Link to the Past", "1030", 0.9),
+            searchHit("A Link to the Past (Remake)", "1031", 0.87),
+        ]);
+        const result = await enrichGame(handle.db, gameId, { provider, now });
+        expect(result.outcome).toBe("skipped");
+        expect(result.message).toContain("Too close");
+        expect(handle.db.select().from(metadataCandidates).where(eq(metadataCandidates.providerKey, "igdb")).all())
+            .toHaveLength(2);
+        expect(handle.db.select().from(games).where(eq(games.id, gameId)).get()?.title)
+            .toBe("Zelda 2 - The Adventure Of Link");
+    });
+    it("will not apply a result that scores too low", async () => {
+        addIdentityWithoutId();
+        const { provider } = fakeProvider(null, [searchHit("Something Else Entirely", "9", 0.35)]);
+        const result = await enrichGame(handle.db, gameId, { provider, now });
+        expect(result.outcome).toBe("skipped");
+        expect(result.message).toContain("below");
+    });
+    it("reports an empty search plainly", async () => {
+        addIdentityWithoutId();
+        const { provider } = fakeProvider(null, []);
+        const result = await enrichGame(handle.db, gameId, { provider, now });
+        expect(result.outcome).toBe("not_found");
+        expect(result.message).toContain("found nothing");
     });
 });

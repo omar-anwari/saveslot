@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resolvePlatformSlug } from "../platform-map.ts";
+import { igdbPlatformIdFor, resolvePlatformSlug } from "../platform-map.ts";
 import { MetadataProviderError } from "../provider-error.ts";
 import {
     nonEmpty,
@@ -13,6 +13,7 @@ import {
 } from "../types.ts";
 import { IGDB_KEY, type IgdbClient } from "./igdb-client.ts";
 import { enrichmentCandidate } from "../candidate.ts";
+import { scoreTitleMatch, searchableTitle } from "../title-match.ts";
 
 export { IGDB_KEY };
 export const GAME_FIELDS = [
@@ -34,6 +35,10 @@ export const GAME_FIELDS = [
 ].join(", ");
 
 const IMAGE_BASE = "https://images.igdb.com/igdb/image/upload";
+
+function quoteApicalypse(value: string): string {
+    return `"${value.replace(/[\\";\r\n]/g, " ").replace(/\s+/g, " ").trim()}"`;
+}
 
 export function coverUrlFor(imageId: string, size = "t_cover_big"): string {
     return `${IMAGE_BASE}/${size}/${imageId}.jpg`;
@@ -152,8 +157,52 @@ export function createIgdbProvider(options: IgdbOptions): MetadataProvider {
             if (metadata === null) return [];
             return [candidateFor(metadata, input.platformSlug)];
         },
-        searchByTitle(_input: TitleSearchInput): Promise<MetadataCandidate[]> {
-            return Promise.resolve([]);
+        async searchByTitle(
+            input: TitleSearchInput,
+            signal?: AbortSignal,
+        ): Promise<MetadataCandidate[]> {
+            const term = searchableTitle(input.title);
+            if (term.length < 2) return [];
+            const platformId = igdbPlatformIdFor(input.platformSlug);
+            const limit = Math.min(Math.max(input.limit, 1), 20);
+            const clauses = [
+                `search ${quoteApicalypse(term)};`,
+                `fields ${GAME_FIELDS};`,
+                platformId === null ? "" : `where platforms = (${platformId});`,
+                `limit ${limit};`,
+            ].filter((clause) => clause.length > 0);
+            const rows = await options.client.query<unknown[]>("games", clauses.join(" "), signal);
+            const candidates: MetadataCandidate[] = [];
+            for (const row of rows) {
+                const metadata = normalizeIgdbGame(row);
+                if (metadata === null) continue;
+                const scored = scoreTitleMatch({
+                    wantedTitle: input.title,
+                    candidateTitle: metadata.title,
+                    wantedYear: input.releaseYear,
+                    candidateYear: metadata.releaseYear,
+                });
+                const agrees = metadata.platformSlugs.includes(input.platformSlug);
+                candidates.push({
+                    providerKey: IGDB_KEY,
+                    providerGameId: metadata.externalIds.find((entry) => entry.source === "IGDB")?.id ?? "",
+                    score: agrees ? scored.score : 0,
+                    matchType: "title",
+                    reasons: agrees
+                        ? scored.reasons
+                        : [
+                            ...scored.reasons,
+                            {
+                                code: "platform.mismatch",
+                                delta: -1,
+                                detail: `Lists ${metadata.platformSlugs.join(", ") || "no supported platform"}, not ${input.platformSlug}.`,
+                            },
+                        ],
+                    platformSlug: agrees ? input.platformSlug : null,
+                    metadata,
+                });
+            }
+            return candidates.sort((left, right) => right.score - left.score);
         },
         async getGame(providerGameId: string, signal?: AbortSignal): Promise<NormalizedGameMetadata | null> {
             if (!/^[0-9]{1,12}$/.test(providerGameId)) return null;

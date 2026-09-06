@@ -125,4 +125,17 @@ describe("createIgdbProvider", () => {
         const provider = createIgdbProvider({ client, enabled: true });
         expect((await provider.healthCheck()).ok).toBe(true);
     });
+    it("strips a revision marker before searching", async () => {
+        const { client, query } = fakeClient([]);
+        const provider = createIgdbProvider({ client, enabled: true });
+        await provider.searchByTitle({
+            title: "Legend of Zelda, The - Link's Awakening Rev 1",
+            platformSlug: "gb",
+            releaseYear: null,
+            limit: 10,
+        });
+        const body = query.mock.calls[0]?.[1] ?? "";
+        expect(body).toContain(`search "Legend of Zelda, The - Link's Awakening";`);
+        expect(body).toContain("where platforms = (33);");
+    });
 });
