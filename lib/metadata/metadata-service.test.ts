@@ -23,7 +23,8 @@ function candidateFor(title: string, platformSlug: string): MetadataCandidate {
         metadata: {
             title, sortTitle: null, summary: null, releaseYear: null,
             developer: null, publisher: null, genres: [], regions: [],
-            languages: [], players: null, coverUrl: null, externalIds: [],
+            languages: [], players: null, rating: null,
+            platformSlugs: [platformSlug], coverUrl: null, externalIds: [],
         },
     };
 }

@@ -7,7 +7,7 @@ import {
     type LookupKey,
     type MetadataDatabase,
 } from "./lookup-cache.ts";
-import { MetadataProviderError } from "./providers/hasheous.ts";
+import { MetadataProviderError } from "./provider-error.ts";
 import type { HashMatchInput, MetadataCandidate, MetadataProvider } from "./types.ts";
 
 export const AUTO_SELECT_MIN_SCORE = 0.98;
@@ -217,9 +217,9 @@ function persist(
     };
 }
 
-type Transaction = Parameters<Parameters<MetadataDatabase["transaction"]>[0]>[0];
+export type Transaction = Parameters<Parameters<MetadataDatabase["transaction"]>[0]>[0];
 
-function applyToGame(
+export function applyToGame(
     tx: Transaction,
     gameId: number,
     candidate: MetadataCandidate,
@@ -250,6 +250,7 @@ function applyToGame(
     assign("developer", meta.developer);
     assign("publisher", meta.publisher);
     assign("players", meta.players);
+    assign("rating", meta.rating);
     if (meta.genres.length > 0) assign("genresJson", [...meta.genres]);
     tx.update(games).set(set).where(eq(games.id, gameId)).run();
     return locked.title === true ? null : meta.title;

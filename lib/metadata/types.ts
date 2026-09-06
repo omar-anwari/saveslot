@@ -16,6 +16,8 @@ export interface NormalizedGameMetadata {
     regions: readonly string[];
     languages: readonly string[];
     players: number | null;
+    rating: number | null;
+    platformSlugs: readonly string[];
     coverUrl: string | null;
     externalIds: readonly ExternalId[];
 }

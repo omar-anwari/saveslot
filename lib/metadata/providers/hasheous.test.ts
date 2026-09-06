@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { MetadataProviderError, createHasheousProvider } from "./hasheous.ts";
+import { createHasheousProvider } from "./hasheous.ts";
 import type { HashMatchInput, MetadataProvider } from "../types.ts";
+import { MetadataProviderError } from "../provider-error.ts";
 
 const FIXTURE = path.join(process.cwd(), "tests/fixtures/hasheous/zelda2-nes.json");
 let recorded: unknown;

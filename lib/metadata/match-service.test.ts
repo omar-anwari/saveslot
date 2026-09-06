@@ -36,6 +36,8 @@ function candidate(overrides: Partial<MetadataCandidate> = {}): MetadataCandidat
             players: 1,
             coverUrl: null,
             externalIds: [],
+            rating: 88,
+            platformSlugs: ["nes"],
         },
         ...overrides,
     };
@@ -118,6 +120,7 @@ describe("identifyGame", () => {
         expect(game?.releaseYear).toBe(1988);
         expect(game?.publisher).toBe("Nintendo");
         expect(game?.genresJson).toEqual(["Action RPG"]);
+        expect(game?.rating).toBe(88);
         expect(game?.metadataStatus).toBe("matched");
         expect(game?.metadataConfidence).toBe(1);
         expect(game?.filenameTitle).toBe("Zelda II");

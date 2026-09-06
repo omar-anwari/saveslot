@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1025,
+    "cover": {
+      "id": 86234,
+      "image_id": "co1uje"
+    },
+    "first_release_date": 537580800,
+    "game_modes": [
+      {
+        "id": 1,
+        "name": "Single player"
+      }
+    ],
+    "genres": [
+      {
+        "id": 8,
+        "name": "Platform"
+      },
+      {
+        "id": 12,
+        "name": "Role-playing (RPG)"
+      },
+      {
+        "id": 31,
+        "name": "Adventure"
+      }
+    ],
+    "involved_companies": [
+      {
+        "id": 149156,
+        "company": {
+          "id": 70,
+          "name": "Nintendo"
+        },
+        "developer": false,
+        "publisher": true
+      },
+      {
+        "id": 198227,
+        "company": {
+          "id": 32471,
+          "name": "Nintendo R&D4"
+        },
+        "developer": true,
+        "publisher": false
+      },
+      {
+        "id": 225322,
+        "company": {
+          "id": 33804,
+          "name": "Playtronic"
+        },
+        "developer": false,
+        "publisher": true
+      }
+    ],
+    "name": "Zelda II: The Adventure of Link",
+    "platforms": [
+      {
+        "id": 51,
+        "name": "Family Computer Disk System"
+      },
+      {
+        "id": 37,
+        "name": "Nintendo 3DS"
+      },
+      {
+        "id": 5,
+        "name": "Wii"
+      },
+      {
+        "id": 41,
+        "name": "Wii U"
+      },
+      {
+        "id": 18,
+        "name": "Nintendo Entertainment System"
+      }
+    ],
+    "slug": "zelda-ii-the-adventure-of-link",
+    "summary": "Zelda II: The Adventure of Link is the second major installment in The Legend of Zelda series and the direct sequel to the first game. Like its predecessor, it features dungeons that must be located in the overworld and searched for an item that will prove useful. However, the game presents many very important gameplay changes compared to the previous one, affecting especially the movements and the combat. Moving around the world map involves encounters with enemies that take place on a side-scrolling playfield rather than the top-down perspective for which the series became known.",
+    "total_rating": 65.35915672734491,
+    "total_rating_count": 305
+  },
+  {
+    "id": 1030,
+    "cover": {
+      "id": 172745,
+      "image_id": "co3pah"
+    },
+    "first_release_date": 956793600,
+    "game_modes": [
+      {
+        "id": 1,
+        "name": "Single player"
+      }
+    ],
+    "genres": [
+      {
+        "id": 9,
+        "name": "Puzzle"
+      },
+      {
+        "id": 31,
+        "name": "Adventure"
+      }
+    ],
+    "involved_companies": [
+      {
+        "id": 148205,
+        "company": {
+          "id": 70,
+          "name": "Nintendo"
+        },
+        "developer": false,
+        "publisher": true
+      },
+      {
+        "id": 199228,
+        "company": {
+          "id": 1366,
+          "name": "Nintendo EAD Software Development Group No.3"
+        },
+        "developer": true,
+        "publisher": false
+      },
+      {
+        "id": 224724,
+        "company": {
+          "id": 812,
+          "name": "Gradiente"
+        },
+        "developer": false,
+        "publisher": true
+      }
+    ],
+    "name": "The Legend of Zelda: Majora's Mask",
+    "platforms": [
+      {
+        "id": 5,
+        "name": "Wii"
+      },
+      {
+        "id": 4,
+        "name": "Nintendo 64"
+      },
+      {
+        "id": 416,
+        "name": "64DD"
+      },
+      {
+        "id": 41,
+        "name": "Wii U"
+      }
+    ],
+    "slug": "the-legend-of-zelda-majora-s-mask",
+    "summary": "The Legend of Zelda: Majora's Mask is a direct sequel to Ocarina of Time, it utilizes the same engine and visual style as its predecessor. The game retains the traditional elements of Zelda games as well as those introduced in Ocarina of Time, such as active blocking with a shield, various throwing items, and the usage of melodies played on the ocarina to solve puzzles. Compared to the previous Zelda games, this installment is more oriented towards interaction with NPCs and has a larger variety of items, optional quests, and mini-games. It also includes a time system that spans three days, and this cycle must be reset periodically to progress through the game.",
+    "total_rating": 88.25814456746767,
+    "total_rating_count": 872
+  }
+]
