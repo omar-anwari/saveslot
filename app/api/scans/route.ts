@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { SCAN_MODES, platforms } from "@/db/schema";
 import { errorResponse } from "../errors";
-import { env } from "@/lib/config/env";
 import { ScanInProgressError } from "@/lib/scanning/scan-lock";
 import { startScan } from "@/lib/scanning/scan-service";
+import { scanEnvironmentOptions } from "@/lib/scanning/scan-options";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,11 +43,9 @@ export async function POST(request: Request) {
     }
     try {
         const { scanRunId, completion } = startScan(db, {
-            libraryRoot: env.romLibraryPath,
+            ...scanEnvironmentOptions(),
             mode,
             platformSlug,
-            hashConcurrency: env.SCAN_CONCURRENCY,
-            algorithms: env.scanHashAlgorithms,
         });
         completion.catch(() => undefined);
         return NextResponse.json(

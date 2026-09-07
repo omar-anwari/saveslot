@@ -5,6 +5,7 @@ import { env } from "../lib/config/env.ts";
 import { failAbandonedScanRuns } from "../lib/scanning/scan-run.ts";
 import { ScanInProgressError } from "../lib/scanning/scan-lock.ts";
 import { runScan } from "../lib/scanning/scan-service.ts";
+import { scanEnvironmentOptions } from "../lib/scanning/scan-options.ts";
 
 const USAGE = `
 Usage: pnpm scan [options]
@@ -58,12 +59,9 @@ async function main(): Promise<number> {
     const startedAt = Date.now();
     try {
         const { scanRunId, counters } = await runScan(db, {
-            libraryRoot: env.romLibraryPath,
+            ...scanEnvironmentOptions(),
             mode,
             platformSlug: values.platform,
-            hashConcurrency: env.SCAN_CONCURRENCY,
-            allowFixtures: env.allowFakeRomFixtures,
-            algorithms: env.scanHashAlgorithms,
         });
         console.log(
             [

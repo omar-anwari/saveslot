@@ -4,6 +4,10 @@ import { platforms, scanEvents, scanRuns } from "@/db/schema";
 import { serializeScanEvent, serializeScanRun } from "@/lib/api/serialize";
 import { env } from "@/lib/config/env";
 import { ScanPanel } from "@/components/settings/scan-panel";
+import { DiagnosticsPanel } from "@/components/settings/diagnostics-panel";
+import { ProvidersPanel } from "@/components/settings/providers-panel";
+import packageJson from "@/package.json";
+import { runDiagnostics, worstStatus } from "@/lib/diagnostics/doctor";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +16,12 @@ export const metadata = {
 };
 
 export default async function SettingsPage() {
+    const checks = await runDiagnostics();
+    const report = {
+        status: worstStatus(checks),
+        generatedAt: new Date().toISOString(),
+        checks,
+    };
     const rows = db
         .select({
             slug: platforms.slug,
@@ -77,6 +87,8 @@ export default async function SettingsPage() {
                 initialScan={latestRun ? serializeScanRun(latestRun) : null}
                 initialEvents={initialEvents}
             />
+            <ProvidersPanel />
+            <DiagnosticsPanel appVersion={packageJson.version} initialReport={report} />
         </main>
     );
 }

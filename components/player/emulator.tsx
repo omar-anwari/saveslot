@@ -25,7 +25,28 @@ type SyncState =
     | { kind: "synced"; at: Date }
     | { kind: "unchanged"; at: Date }
     | { kind: "conflict"; message: string }
-    | { kind: "failed"; message: string };
+    | { kind: "failed"; message: string }
+    | { kind: "quit"; steps: QuitStep[]; ok: boolean };
+
+type StepStatus = "ok" | "skipped" | "failed";
+
+interface QuitStep {
+    label: string;
+    status: StepStatus;
+    detail: string | null;
+}
+
+const QUIT_SETTLE_MS = 300;
+
+const CAPTURE_AUTOSAVE_ON_QUIT = true;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
 
 interface StateItem {
     id: string;
@@ -406,31 +427,108 @@ export function Emulator({
         };
     }, [initialSave, pushSave, refreshStates, saveIntervalMs, core, gameSlug]);
     async function saveAndQuit() {
+        if (quitting) return;
         setQuitting(true);
-        setState({ kind: "syncing" });
-        const adapter = adapterRef.current;
-        if (adapter) await adapter.pause();
-        const result = await pushSave("quit");
-        setState(result);
-        const session = sessionId.current;
-        if (session) {
-            sessionId.current = null;
-            await fetch(`/api/sessions/${session}/end?reason=save_and_quit`, {
-                method: "POST",
-            }).catch(() => undefined);
-        }
-        if (result.kind === "failed" || result.kind === "conflict") {
-            if (adapter) await adapter.resume();
-            setQuitting(false);
+        const steps: QuitStep[] = [];
+        function record(label: string, status: StepStatus, detail: string | null = null) {
+            steps.push({ label, status, detail });
             setState({
-                kind: "failed",
-                message: `${result.kind === "conflict"
-                    ? "Another tab saved more recently; your copy was kept separately."
-                    : "The save could not be uploaded."
-                    } Play continues — use Exit to leave without saving.`,
+                kind: "quit",
+                steps: [...steps],
+                ok: steps.every((step) => step.status !== "failed"),
             });
+        }
+        const adapter = adapterRef.current;
+        if (!adapter?.ready) {
+            record("Emulator", "failed", "It is not running, so there is nothing to save.");
+            setQuitting(false);
             return;
         }
+        let screenshot: Uint8Array | null = null;
+        try {
+            screenshot = await adapter.captureScreenshot();
+            record("Screenshot", "ok");
+        } catch (error) {
+            record("Screenshot", "failed", errorMessage(error));
+        }
+        await adapter.pause();
+        await sleep(QUIT_SETTLE_MS);
+        record("Emulation paused", "ok", `Settled for ${QUIT_SETTLE_MS}ms.`);
+        const saveResult = await pushSave("quit");
+        switch (saveResult.kind) {
+            case "synced":
+                record("Battery save", "ok", "Uploaded.");
+                break;
+            case "unchanged":
+                record("Battery save", "ok", "Unchanged since the last sync.");
+                break;
+            case "conflict":
+                record(
+                    "Battery save",
+                    "failed",
+                    "Another tab saved more recently; your copy was kept as a separate save.",
+                );
+                break;
+            default:
+                record(
+                    "Battery save",
+                    "failed",
+                    saveResult.kind === "failed" ? saveResult.message : "The upload failed.",
+                );
+                break;
+        }
+        if (!CAPTURE_AUTOSAVE_ON_QUIT) {
+            record("Autosave state", "skipped", "Turned off.");
+        } else {
+            try {
+                const bytes = await adapter.readState();
+                const buffer = toArrayBuffer(bytes);
+                const url = new URL(`/api/games/${gameSlug}/states`, window.location.origin);
+                url.searchParams.set("core", core);
+                url.searchParams.set("checksum", await sha256Hex(buffer));
+                url.searchParams.set("autosave", "true");
+                url.searchParams.set("label", "Save & Quit");
+                if (adapter.coreName) url.searchParams.set("coreVersion", adapter.coreName);
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "content-type": "application/octet-stream" },
+                    body: new Blob([buffer]),
+                });
+                if (!response.ok) {
+                    record("Autosave state", "failed", `The upload returned ${response.status}.`);
+                } else {
+                    const { stateId } = (await response.json()) as { stateId: string };
+                    if (screenshot !== null) {
+                        await fetch(`/api/states/${stateId}/screenshot`, {
+                            method: "POST",
+                            headers: { "content-type": "image/png" },
+                            body: new Blob([toArrayBuffer(screenshot)]),
+                        }).catch(() => undefined);
+                    }
+                    record("Autosave state", "ok", "Uploaded.");
+                }
+            } catch (error) {
+                record("Autosave state", "failed", errorMessage(error));
+            }
+        }
+        const session = sessionId.current;
+        if (session === null) {
+            record("Play session", "skipped", "None was open.");
+        } else {
+            sessionId.current = null;
+            const ended = await fetch(`/api/sessions/${session}/end?reason=save_and_quit`, {
+                method: "POST",
+            })
+                .then((response) => response.ok)
+                .catch(() => false);
+            record("Play session", ended ? "ok" : "failed", ended ? "Ended." : "Could not be closed.");
+        }
+        if (steps.some((step) => step.status === "failed")) {
+            await adapter.resume();
+            setQuitting(false);
+            return;
+        }
+        await refreshStates();
         window.location.assign(`/games/${gameSlug}`);
     }
     return (
@@ -438,7 +536,7 @@ export function Emulator({
             <div id="emulator" className="h-full w-full" />
             <div
                 aria-live="polite"
-                className="pointer-events-none absolute right-4 top-4 z-50 max-w-xs text-right text-xs text-white/80"
+                className="pointer-events-none absolute right-4 top-4 z-50 max-w-sm text-right text-xs text-white/80"
             >
                 <StatusLine state={state} />
             </div>
@@ -535,5 +633,26 @@ function StatusLine({ state }: { state: SyncState }) {
             return <span className="text-amber-300">Conflict: {state.message}</span>;
         case "failed":
             return <span className="text-amber-300">{state.message}</span>;
+        case "quit":
+            return (
+                <ul className="space-y-0.5">
+                    {state.steps.map((step) => (
+                        <li key={step.label} className={step.status === "failed" ? "text-amber-300" : ""}>
+                            <span aria-hidden="true">
+                                {step.status === "ok" ? "✓" : step.status === "skipped" ? "–" : "✕"}
+                            </span>{" "}
+                            {step.label}
+                            {step.detail === null ? null : (
+                                <span className="text-white/60"> — {step.detail}</span>
+                            )}
+                        </li>
+                    ))}
+                    {state.ok ? null : (
+                        <li className="mt-1 text-amber-300">
+                            Play continues. Use Exit to leave without saving.
+                        </li>
+                    )}
+                </ul>
+            );
     }
 }

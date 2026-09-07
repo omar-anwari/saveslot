@@ -17,6 +17,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "node --env-file-if-exists=.env.local --conditions=react-server db/seed.ts",
+    "db:backup": "node --env-file-if-exists=.env.local --conditions=react-server scripts/backup.ts",
     "scan": "node --env-file-if-exists=.env.local --conditions=react-server scripts/scan.ts",
     "metadata": "node --env-file-if-exists=.env.local --conditions=react-server scripts/metadata.ts",
     "fixtures": "node --env-file-if-exists=.env.local --conditions=react-server scripts/create-dev-fixtures.ts",
