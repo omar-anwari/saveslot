@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CoverImage } from "@/components/library/cover-image";
+import { MetadataEditor } from "@/components/library/metadata-editor";
 import { artworkUrl } from "@/lib/artwork/url";
 import { db } from "@/db/client";
 import { getGameDetail } from "@/lib/games/query";
@@ -159,63 +160,23 @@ export default async function GamePage({
                         </dd>
                     </div>
                 </dl>
-                {game.candidates.length > 0 ? (
-                    <div className="mt-6 space-y-3">
-                        <h3 className="text-sm font-medium text-muted">Candidates</h3>
-                        {game.candidates.map((candidate) => (
-                            <div
-                                key={`${candidate.providerKey}:${candidate.providerGameId}`}
-                                className="rounded-md border border-line p-4"
-                            >
-                                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                                    <span className="text-sm font-medium">{candidate.title}</span>
-                                    <span className="text-xs text-muted">
-                                        {candidate.providerKey} · {candidate.matchType} match ·{" "}
-                                        {Math.round(candidate.score * 100)}%
-                                    </span>
-                                    {candidate.isSelected ? (
-                                        <span className="rounded border border-line px-2 py-0.5 text-xs">
-                                            Applied
-                                        </span>
-                                    ) : null}
-                                </div>
-                                {candidate.reasons.length > 0 ? (
-                                    <ul className="mt-2 space-y-1 text-xs text-muted">
-                                        {candidate.reasons.map((reason) => (
-                                            <li key={reason.code}>
-                                                <span className="font-mono">{reason.code}</span>{" "}
-                                                {reason.delta >= 0 ? "+" : ""}
-                                                {reason.delta.toFixed(2)} — {reason.detail}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : null}
-                                {candidate.externalIds.length > 0 ? (
-                                    <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                                        {candidate.externalIds.map((external) =>
-                                            external.url === null ? (
-                                                <span key={external.source} className="text-muted">
-                                                    {external.source}
-                                                </span>
-                                            ) : (
-                                                <a
-                                                    key={external.source}
-                                                    href={external.url}
-                                                    target="_blank"
-                                                    rel="noreferrer noopener"
-                                                    className="underline underline-offset-2"
-                                                >
-                                                    {external.source}
-                                                </a>
-                                            ),
-                                        )}
-                                    </p>
-                                ) : null}
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
             </section>
+            <MetadataEditor
+                slug={game.slug}
+                filenameTitle={game.filenameTitle}
+                locks={game.manualFields}
+                candidates={game.candidates}
+                values={{
+                    title: game.title,
+                    summary: game.summary ?? "",
+                    releaseYear: game.releaseYear === null ? "" : String(game.releaseYear),
+                    developer: game.developer ?? "",
+                    publisher: game.publisher ?? "",
+                    genres: game.genres.join(", "),
+                    players: game.players === null ? "" : String(game.players),
+                    region: game.region ?? "",
+                }}
+            />
             <section className="mt-6 rounded-lg border border-line p-6">
                 <h2 className="text-lg font-medium">Files</h2>
                 <ul className="mt-3 space-y-4">

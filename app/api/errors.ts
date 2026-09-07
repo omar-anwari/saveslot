@@ -7,6 +7,8 @@ export const ERROR_CODES = [
     "CONFLICT",
     "PAYLOAD_TOO_LARGE",
     "UNSUPPORTED_MEDIA_TYPE",
+    "AUTH_DISABLED",
+    "FORBIDDEN",
     "INTERNAL_ERROR",
 ] as const;
 

@@ -254,34 +254,61 @@ nothing reads it.
 fine. If you need remote access, put it behind Tailscale or an identity-aware
 proxy. "Only I know the URL" is not authentication.
 
-What is in place: path traversal and symlink escape are rejected on every file
-route, uploads are size-limited while streaming, screenshots are validated by
-magic bytes rather than declared type, filenames are sanitised before entering
-headers, and the player runs cross-origin isolated with COOP and COEP.
+Replace with:
 
-## Development commands
+## Security and exposure
+
+Authentication is **off by default** and enabled by setting a password:
 
 ```bash
-pnpm dev                  # development server
-pnpm build && pnpm start  # production build
-pnpm test                 # unit and integration tests
-pnpm test:watch
-pnpm test:all             # lint + typecheck + test + build
-pnpm lint
-pnpm typecheck
-
-pnpm db:generate          # create a migration from schema changes
-pnpm db:migrate
-pnpm db:seed
-pnpm db:studio
-
-pnpm run setup:local
-pnpm run doctor
-pnpm run scan --mode quick
-pnpm run fixtures
-pnpm run emulatorjs:sync
-pnpm run emulatorjs:check
+APP_PASSWORD=choose-something-long
+SESSION_SECRET=<48+ random characters>
 ```
+Generate the secret with:
+```
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+```
+With APP_PASSWORD set, every page and API route requires a signed session
+cookie; without it, everything is open, which is
+trusted LAN. The session is a signed expiry rather than a database row —
+rotating SESSION_SECRET invalidates every sessio
+
+SESSION_SECRET must be at least 32 characters wh
+the app refuses to start otherwise.
+
+This is one password and one user. It is not hardened against a determined
+attacker on the open internet: there is no lockod a
+short delay on a wrong password, and no second factor. For remote access, put
+it behind Tailscale or an identity-aware proxy r
+alone.
+
+**7. The parts worth knowing**
+
+- **The CSRF check runs even with auth disabled.** Without a session there's no cookie to ride — but a page on another site
+could still make your browser POST a scan or a s:3000`. That's worth blocking regardless.
+- **A request with neither `Sec-Fetch-Site` nor `Origin` is allowed.** Every curl command in this session sends neither;
+every browser sends at least one. Rejecting headak the CLI and scripts without stopping anyattack.
+- **A malformed `Origin` is rejected, not ignoret a sandboxed iframe sends — treating "I couldn'tparse it" as "it's fine" is the wrong default.
+- **`appUrl` is accepted alongside the request oeverse proxy `request.nextUrl.origin` is theinternal address while the browser sends the public one.
+- **The README no longer lies.** It said "there  now it says what exists and, just as importantly, what it isn't.
+
+**8. Verify**
+
+```bash
+pnpm test lib/auth
+pnpm typecheck
+pnpm lint
+```
+Then, with the dev server running and signed in:
+```
+curl -s -o /dev/null -w '%{http_code} cross-sitecalhost:3000/api/auth/login \
+  -H 'content-type: application/json' -H 'sec-fetch-site: cross-site' -d '{"password":"x"}'
+curl -s -o /dev/null -w '%{http_code} bad-originst:3000/api/auth/login \
+  -H 'content-type: application/json' -H 'origin: https://evil.example' -d '{"password":"x"}'
+curl -s -o /dev/null -w '%{http_code} plain-curlst:3000/api/auth/login \
+  -H 'content-type: application/json' -d '{"password":"x"}'
+```
+Expect 403, 403, 401 — the third proving a scripted client still works and gets a genuine auth answer rather than a CSRF rejection. Then use the app normally in the brown the player and editing metadata should all still work, since those are same-origin.
 
 ## Licences
 

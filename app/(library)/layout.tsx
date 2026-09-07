@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { env } from "@/lib/config/env";
 
 const NAV_ITEMS = [
@@ -40,6 +41,7 @@ export default function LibraryLayout({ children }: { children: ReactNode }) {
                                 ))}
                             </ul>
                         </nav>
+                        {env.appPasswordEnabled ? <SignOutButton /> : null}
                     </div>
                 </header>
                 <div id="main" className="flex-1">

@@ -273,6 +273,7 @@ export interface GameDetail {
     metadataConfidence: number | null;
     coverPath: string | null;
     coverThumbPath: string | null;
+    manualFields: Record<string, boolean>;
     candidates: MetadataCandidateDetail[];
     favourite: boolean;
     hidden: boolean;
@@ -317,6 +318,7 @@ export function getGameDetail(
             metadataConfidence: games.metadataConfidence,
             coverPath: games.coverPath,
             coverThumbPath: games.coverThumbPath,
+            manualFieldsJson: games.manualFieldsJson,
             favourite: games.favourite,
             hidden: games.hidden,
             playStatus: games.playStatus,
@@ -402,6 +404,10 @@ export function getGameDetail(
         metadataConfidence: row.metadataConfidence,
         coverPath: row.coverPath,
         coverThumbPath: row.coverThumbPath,
+        manualFields:
+            typeof row.manualFieldsJson === "object" && row.manualFieldsJson !== null
+                ? row.manualFieldsJson
+                : {},
         candidates,
         favourite: row.favourite,
         hidden: row.hidden,
