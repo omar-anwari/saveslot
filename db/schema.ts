@@ -96,6 +96,10 @@ export const games = sqliteTable(
       .$type<Record<string, boolean>>()
       .notNull()
       .default({}),
+    coverPath: text("cover_path"),
+    coverThumbPath: text("cover_thumb_path"),
+    coverSourceUrl: text("cover_source_url"),
+    coverUpdatedAt: integer("cover_updated_at", { mode: "timestamp" }),
     favourite: integer("favourite", { mode: "boolean" })
       .notNull()
       .default(false),

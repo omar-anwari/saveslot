@@ -53,6 +53,7 @@ function card(game: GameListItem, meta?: string) {
             platformName={game.platformName}
             releaseYear={game.releaseYear}
             present={game.present}
+            coverThumbPath={game.coverThumbPath}
             meta={meta}
         />
     );

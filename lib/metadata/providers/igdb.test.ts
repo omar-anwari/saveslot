@@ -40,9 +40,14 @@ describe("normalizeIgdbGame", () => {
         expect(metadata?.platformSlugs).toContain("nes");
         expect(metadata?.platformSlugs).toEqual(["nes"]);
     });
+    it("requests a source larger than the widest derivative", () => {
+        const url = normalizeIgdbGame(zelda2)?.coverUrl ?? "";
+        expect(url).toContain("/t_1080p/");
+        expect(url).not.toContain("t_cover_big");
+    });
     it("builds a cover URL from the image id", () => {
         expect(normalizeIgdbGame(zelda2)?.coverUrl).toBe(
-            "https://images.igdb.com/igdb/image/upload/t_cover_big/co1uje.jpg",
+            "https://images.igdb.com/igdb/image/upload/t_1080p/co1uje.jpg",
         );
         expect(coverUrlFor("co1uje", "t_1080p")).toBe(
             "https://images.igdb.com/igdb/image/upload/t_1080p/co1uje.jpg",

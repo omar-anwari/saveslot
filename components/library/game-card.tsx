@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { PlaceholderCover } from "@/components/library/placeholder-cover";
+import { CoverImage } from "@/components/library/cover-image";
+import { artworkUrl } from "@/lib/artwork/url";
 
 export interface GameCardProps {
     slug: string;
@@ -9,6 +10,7 @@ export interface GameCardProps {
     releaseYear?: number | null;
     present?: boolean;
     meta?: string;
+    coverThumbPath?: string | null;
 }
 
 export function GameCard({
@@ -19,6 +21,7 @@ export function GameCard({
     releaseYear,
     present = true,
     meta,
+    coverThumbPath = null,
 }: GameCardProps) {
     return (
         <li>
@@ -26,7 +29,11 @@ export function GameCard({
                 href={`/games/${slug}`}
                 className="group block rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-                <PlaceholderCover title={title} platformSlug={platformSlug} />
+                <CoverImage
+                    title={title}
+                    platformSlug={platformSlug}
+                    src={artworkUrl(coverThumbPath)}
+                />
                 <h3 className="mt-2 line-clamp-2 text-sm font-medium leading-snug group-hover:underline">
                     {title}
                 </h3>

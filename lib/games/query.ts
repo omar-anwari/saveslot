@@ -47,6 +47,7 @@ export interface GameListItem {
     hidden: boolean;
     playStatus: string;
     metadataStatus: string;
+    coverThumbPath: string | null;
     lastPlayedAt: Date | null;
     totalPlaySeconds: number;
     present: boolean;
@@ -70,6 +71,7 @@ const GAME_LIST_COLUMNS = {
     hidden: games.hidden,
     playStatus: games.playStatus,
     metadataStatus: games.metadataStatus,
+    coverThumbPath: games.coverThumbPath,
     lastPlayedAt: games.lastPlayedAt,
     totalPlaySeconds: games.totalPlaySeconds,
     present: sql<boolean>`exists (
@@ -269,6 +271,8 @@ export interface GameDetail {
     metadataStatus: string;
     metadataProvider: string | null;
     metadataConfidence: number | null;
+    coverPath: string | null;
+    coverThumbPath: string | null;
     candidates: MetadataCandidateDetail[];
     favourite: boolean;
     hidden: boolean;
@@ -311,6 +315,8 @@ export function getGameDetail(
             metadataStatus: games.metadataStatus,
             metadataProvider: games.metadataProvider,
             metadataConfidence: games.metadataConfidence,
+            coverPath: games.coverPath,
+            coverThumbPath: games.coverThumbPath,
             favourite: games.favourite,
             hidden: games.hidden,
             playStatus: games.playStatus,
@@ -394,6 +400,8 @@ export function getGameDetail(
         metadataStatus: row.metadataStatus,
         metadataProvider: row.metadataProvider,
         metadataConfidence: row.metadataConfidence,
+        coverPath: row.coverPath,
+        coverThumbPath: row.coverThumbPath,
         candidates,
         favourite: row.favourite,
         hidden: row.hidden,

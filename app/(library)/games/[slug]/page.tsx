@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PlaceholderCover } from "@/components/library/placeholder-cover";
+import { CoverImage } from "@/components/library/cover-image";
+import { artworkUrl } from "@/lib/artwork/url";
 import { db } from "@/db/client";
 import { getGameDetail } from "@/lib/games/query";
 import { GameActions } from "@/components/library/game-actions";
@@ -60,9 +61,10 @@ export default async function GamePage({
             </Link>
             <div className="mt-6 flex flex-col gap-8 sm:flex-row">
                 <div className="w-40 shrink-0">
-                    <PlaceholderCover
+                    <CoverImage
                         title={game.title}
                         platformSlug={game.platform.slug}
+                        src={artworkUrl(game.coverPath)}
                     />
                 </div>
                 <div className="min-w-0 flex-1">

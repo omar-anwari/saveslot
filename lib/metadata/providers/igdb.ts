@@ -40,7 +40,7 @@ function quoteApicalypse(value: string): string {
     return `"${value.replace(/[\\";\r\n]/g, " ").replace(/\s+/g, " ").trim()}"`;
 }
 
-export function coverUrlFor(imageId: string, size = "t_cover_big"): string {
+export function coverUrlFor(imageId: string, size = "t_1080p"): string {
     return `${IMAGE_BASE}/${size}/${imageId}.jpg`;
 }
 

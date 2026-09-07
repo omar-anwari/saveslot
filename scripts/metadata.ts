@@ -2,6 +2,7 @@ import { parseArgs } from "node:util";
 import { db, sqlite } from "../db/client.ts";
 import { games } from "../db/schema.ts";
 import { env } from "../lib/config/env.ts";
+import { runArtworkPass } from "../lib/artwork/service.ts";
 import { runEnrichmentPass, runMetadataPass } from "../lib/metadata/metadata-service.ts";
 import { configuredProviders } from "../lib/metadata/providers/index.ts";
 
@@ -16,8 +17,9 @@ Options:
   --limit <n>          Stop after n games per phase
   --all                Include games that already matched (identify phase)
   --force              Ignore cached answers and ask the providers again
-  --identify-only      Skip the describe phase
-  --describe-only      Skip the identify phase
+  --identify-only      Only match checksums
+  --describe-only      Only enrich from the richer provider
+  --art-only           Only download and cache cover art
   --health             Check the providers and exit
   -h, --help           Show this message
 
@@ -47,6 +49,7 @@ async function main(): Promise<number> {
             force: { type: "boolean", default: false },
             "identify-only": { type: "boolean", default: false },
             "describe-only": { type: "boolean", default: false },
+            "art-only": { type: "boolean", default: false },
             health: { type: "boolean", default: false },
             help: { type: "boolean", short: "h", default: false },
         },
@@ -86,7 +89,10 @@ async function main(): Promise<number> {
         delayMs: env.METADATA_REQUEST_DELAY_MS,
     };
     let failed = false;
-    if (!values["describe-only"]) {
+    const runIdentify = !values["describe-only"] && !values["art-only"];
+    const runDescribe = !values["identify-only"] && !values["art-only"];
+    const runArtwork = !values["identify-only"] && !values["describe-only"];
+    if (runIdentify) {
         if (identifier === null) {
             console.error("No identifying provider. Set HASHEOUS_ENABLED=true in .env.local.");
             return 2;
@@ -118,7 +124,7 @@ async function main(): Promise<number> {
             failed = true;
         }
     }
-    if (!values["identify-only"] && !failed) {
+    if (runDescribe && !failed) {
         if (enricher === null) {
             console.log("Describe — skipped, IGDB is not configured.");
         } else {
@@ -147,6 +153,36 @@ async function main(): Promise<number> {
                 console.warn(`\n${summary.abortedReason}`);
                 failed = true;
             }
+        }
+    }
+    if (runArtwork && !failed) {
+        const titles = titleMap();
+        console.log(`\nArtwork — caching covers into ${env.APP_DATA_PATH}\n`);
+        let lastAt = Date.now();
+        const summary = await runArtworkPass(db, {
+            dataRoot: env.appDataPath,
+            platformSlug: values.platform,
+            limit,
+            forceRefresh: values.force,
+            delayMs: env.METADATA_REQUEST_DELAY_MS,
+            timeoutMs: env.METADATA_REQUEST_TIMEOUT_MS,
+            onProgress: (result, index, total) => {
+                const elapsed = Date.now() - lastAt;
+                lastAt = Date.now();
+                const detail = result.message !== null ? ` (${result.message})` : "";
+                console.log(
+                    `  [${index + 1}/${total}] ${titles.get(result.gameId) ?? result.gameId}: ` +
+                    `${result.outcome}${detail}${result.deduped ? " [deduped]" : ""} ${seconds(elapsed)}`,
+                );
+            },
+        });
+        console.log(
+            `\n  cached ${summary.cached} · reused ${summary.reused}` +
+            ` · skipped ${summary.skipped} · errors ${summary.errors}`,
+        );
+        if (summary.abortedReason !== null) {
+            console.warn(`\n${summary.abortedReason}`);
+            failed = true;
         }
     }
     return failed ? 1 : 0;
