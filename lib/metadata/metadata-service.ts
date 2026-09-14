@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { forEachWithConcurrency } from "../scanning/concurrency.ts";
 import { games, metadataCandidates, platforms } from "../../db/schema.ts";
 import { enrichGame, type EnrichGameResult } from "./enrich-service.ts";
 import type { MetadataDatabase } from "./lookup-cache.ts";
@@ -9,6 +10,7 @@ export const MAX_CONSECUTIVE_ERRORS = 3;
 export interface RunMetadataOptions {
     provider: MetadataProvider;
     includeMatched?: boolean;
+    concurrency?: number;
     platformSlug?: string;
     limit?: number;
     forceRefresh?: boolean;
@@ -66,43 +68,51 @@ export async function runMetadataPass(
     const targets = query.all();
     const summary: RunMetadataSummary = { ...EMPTY, total: targets.length };
     let consecutiveErrors = 0;
-    for (const [index, target] of targets.entries()) {
-        if (options.signal?.aborted === true) {
-            summary.abortedReason = "Cancelled.";
-            break;
-        }
-        const result = await identifyGame(db, target.id, {
-            provider: options.provider,
-            signal: options.signal,
-            now: options.now,
-            forceRefresh: options.forceRefresh,
-        });
-        if (result.fromCache) summary.fromCache += 1;
-        switch (result.outcome) {
-            case "matched": summary.matched += 1; break;
-            case "partial": summary.partial += 1; break;
-            case "not_found": summary.notFound += 1; break;
-            case "skipped": summary.skipped += 1; break;
-            case "error": summary.errors += 1; break;
-        }
-        options.onProgress?.(result, index, targets.length);
-        if (result.retryAfterMs !== null && !result.fromCache) {
-            summary.abortedReason =
-                `Provider is rate limiting. Retry in about ${Math.ceil(result.retryAfterMs / 1000)}s.`;
-            break;
-        }
-        if (result.outcome === "error" && !result.fromCache) {
-            consecutiveErrors += 1;
-            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                summary.abortedReason = `Provider failed ${consecutiveErrors} times in a row; stopping.`;
-                break;
+    let completed = 0;
+    let stop = false;
+    await forEachWithConcurrency(
+        targets,
+        Math.max(1, options.concurrency ?? 1),
+        async (target) => {
+            const result = await identifyGame(db, target.id, {
+                provider: options.provider,
+                signal: options.signal,
+                now: options.now,
+                forceRefresh: options.forceRefresh,
+            });
+            completed += 1;
+            if (result.fromCache) summary.fromCache += 1;
+            switch (result.outcome) {
+                case "matched": summary.matched += 1; break;
+                case "partial": summary.partial += 1; break;
+                case "not_found": summary.notFound += 1; break;
+                case "skipped": summary.skipped += 1; break;
+                case "error": summary.errors += 1; break;
             }
-        } else {
+            options.onProgress?.(result, completed - 1, targets.length);
+            if (result.retryAfterMs !== null && !result.fromCache) {
+                summary.abortedReason =
+                    `Provider is rate limiting. Retry in about ${Math.ceil(result.retryAfterMs / 1000)}s.`;
+                stop = true;
+                return;
+            }
+            if (result.outcome === "error" && !result.fromCache) {
+                consecutiveErrors += 1;
+                if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                    summary.abortedReason = `Provider failed ${consecutiveErrors} times in a row; stopping.`;
+                    stop = true;
+                }
+                return;
+            }
             consecutiveErrors = 0;
-        }
-        if (!result.fromCache && result.outcome !== "skipped") {
-            await sleep(options.delayMs ?? 0, options.signal);
-        }
+            if (!result.fromCache && result.outcome !== "skipped") {
+                await sleep(options.delayMs ?? 0, options.signal);
+            }
+        },
+        () => stop || options.signal?.aborted === true,
+    );
+    if (options.signal?.aborted === true && summary.abortedReason === null) {
+        summary.abortedReason = "Cancelled.";
     }
     return summary;
 }
@@ -153,6 +163,7 @@ export async function runEnrichmentPass(
         abortedReason: null,
     };
     let consecutiveErrors = 0;
+
     for (const [index, target] of targets.entries()) {
         if (options.signal?.aborted === true) {
             summary.abortedReason = "Cancelled.";

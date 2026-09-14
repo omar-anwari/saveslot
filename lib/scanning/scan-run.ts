@@ -169,3 +169,19 @@ export function findRunningScan(db: ScanDatabase, mode?: ScanMode) {
         )
         .get();
 }
+
+export function updateScanProgress(
+    db: ScanDatabase,
+    scanRunId: string,
+    progress: { phase: string | null; done: number; total: number },
+): void {
+    db.update(scanRuns)
+        .set({
+            progressPhase: progress.phase,
+            progressDone: progress.done,
+            progressTotal: progress.total,
+            updatedAt: new Date(),
+        })
+        .where(eq(scanRuns.id, scanRunId))
+        .run();
+}

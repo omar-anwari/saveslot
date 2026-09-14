@@ -36,3 +36,8 @@ export function saveExtension(core: CoreDefinition): string | null {
         ? core.save
         : null;
 }
+export function coreHasBatterySave(name: string): boolean {
+    if (!isEmulatorJsInstalled()) return true;
+    const core = findCore(name);
+    return core !== undefined && saveExtension(core) !== null;
+}

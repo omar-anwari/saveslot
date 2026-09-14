@@ -121,6 +121,12 @@ export async function identifyGame(
             const message = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error.";
             const retryAfterMs =
                 error instanceof MetadataProviderError ? error.retryAfterMs : null;
+            if (error instanceof Error && error.name === "AbortError") {
+                return {
+                    gameId, outcome: "error", fromCache: false, candidateCount: 0,
+                    appliedTitle: null, message: "Cancelled.", retryAfterMs: null,
+                };
+            }
             writeLookup(db, key, { status: "error", errorMessage: message, ttlMs: retryAfterMs }, now);
             return {
                 gameId, outcome: "error", fromCache: false, candidateCount: 0,

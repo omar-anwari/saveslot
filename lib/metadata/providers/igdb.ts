@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { igdbPlatformIdFor, resolvePlatformSlug } from "../platform-map.ts";
+import { igdbPlatformIdsFor, resolvePlatformSlug } from "../platform-map.ts";
 import { MetadataProviderError } from "../provider-error.ts";
 import {
     nonEmpty,
@@ -163,12 +163,12 @@ export function createIgdbProvider(options: IgdbOptions): MetadataProvider {
         ): Promise<MetadataCandidate[]> {
             const term = searchableTitle(input.title);
             if (term.length < 2) return [];
-            const platformId = igdbPlatformIdFor(input.platformSlug);
+            const platformId = igdbPlatformIdsFor(input.platformSlug);
             const limit = Math.min(Math.max(input.limit, 1), 20);
             const clauses = [
                 `search ${quoteApicalypse(term)};`,
                 `fields ${GAME_FIELDS};`,
-                platformId === null ? "" : `where platforms = (${platformId});`,
+                platformId.length === 0 ? "" : `where platforms = (${platformId.join(",")});`,
                 `limit ${limit};`,
             ].filter((clause) => clause.length > 0);
             const rows = await options.client.query<unknown[]>("games", clauses.join(" "), signal);

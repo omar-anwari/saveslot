@@ -8,6 +8,7 @@ import {
 } from "../../tests/helpers/test-db.ts";
 import { MAX_CONSECUTIVE_ERRORS, runMetadataPass } from "./metadata-service.ts";
 import type { HashMatchResult, MetadataCandidate, MetadataProvider } from "./types.ts";
+import { MetadataProviderError } from "./provider-error.ts";
 
 let handle: TestDatabaseHandle;
 const now = new Date("2026-09-05T12:00:00Z");
@@ -160,5 +161,44 @@ describe("runMetadataPass", () => {
         const summary = await runMetadataPass(handle.db, { provider, now, signal: controller.signal });
         expect(summary.abortedReason).toBe("Cancelled.");
         expect(provider.calls).toBe(0);
+    });
+});
+
+describe("runMetadataPass concurrency", () => {
+    it("keeps several lookups in flight", async () => {
+        for (let index = 0; index < 6; index += 1) {
+            addGame(`game-${index}`, "nes", String(index).repeat(40).slice(0, 40));
+        }
+        let inFlight = 0;
+        let peak = 0;
+        const release: (() => void)[] = [];
+        const provider = fakeProvider(() => ({
+            status: "not_found", candidates: [], payload: null, latencyMs: 1,
+        }));
+        const original = provider.matchByHashes.bind(provider);
+        provider.matchByHashes = async (input) => {
+            inFlight += 1;
+            peak = Math.max(peak, inFlight);
+            await new Promise<void>((resolve) => release.push(resolve));
+            inFlight -= 1;
+            return original(input);
+        };
+        const pass = runMetadataPass(handle.db, { provider, now, concurrency: 3 });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        const drain = setInterval(() => release.shift()?.(), 1);
+        await pass;
+        clearInterval(drain);
+        expect(peak).toBe(3);
+    });
+    it("stops scheduling after a rate limit without cancelling work in flight", async () => {
+        for (let index = 0; index < 8; index += 1) {
+            addGame(`game-${index}`, "nes", String(index).repeat(40).slice(0, 40));
+        }
+        const error = new MetadataProviderError("rate limited", "fake", 429, 5000);
+        const provider = fakeProvider(() => error);
+        const summary = await runMetadataPass(handle.db, { provider, now, concurrency: 2 });
+        expect(summary.abortedReason).toContain("rate limiting");
+        expect(provider.calls).toBeLessThanOrEqual(2);
+        expect(summary.total).toBe(8);
     });
 });

@@ -86,6 +86,7 @@ async function main(): Promise<number> {
         platformSlug: values.platform,
         limit,
         forceRefresh: values.force,
+        concurrency: env.METADATA_CONCURRENCY,
         delayMs: env.METADATA_REQUEST_DELAY_MS,
     };
     let failed = false;

@@ -6,6 +6,7 @@ import { failAbandonedScanRuns } from "../lib/scanning/scan-run.ts";
 import { ScanInProgressError } from "../lib/scanning/scan-lock.ts";
 import { runScan } from "../lib/scanning/scan-service.ts";
 import { scanEnvironmentOptions } from "../lib/scanning/scan-options.ts";
+import { createProgressBar } from "../lib/cli/progress.ts";
 
 const USAGE = `
 Usage: pnpm scan [options]
@@ -48,6 +49,14 @@ async function main(): Promise<number> {
         console.error(USAGE);
         return 2;
     }
+    if (mode === "metadata-only") {
+        console.error(
+            "Scanning does not fetch metadata. Use:\n" +
+            "  pnpm metadata                 identify, describe and cache artwork\n" +
+            "  pnpm metadata --identify-only just match checksums",
+        );
+        return 2;
+    }
     const reaped = failAbandonedScanRuns(db);
     if (reaped > 0) {
         console.warn(
@@ -57,12 +66,17 @@ async function main(): Promise<number> {
     console.log(`Scanning ${env.ROM_LIBRARY_PATH} (mode: ${mode})`);
     if (values.platform) console.log(`Platform filter: ${values.platform}`);
     const startedAt = Date.now();
+    const bar = createProgressBar();
     try {
         const { scanRunId, counters } = await runScan(db, {
             ...scanEnvironmentOptions(),
             mode,
             platformSlug: values.platform,
+            onProgress: ({ phase, done, total }) => {
+                bar.render(phase, done, total, done === total);
+            },
         });
+        bar.finish();
         console.log(
             [
                 "",

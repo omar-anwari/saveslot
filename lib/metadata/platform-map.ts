@@ -10,6 +10,24 @@ const SLUG_BY_IGDB_PLATFORM_ID: ReadonlyMap<number, string> = new Map([
     [29, "genesis"],
     [35, "gamegear"],
     [4, "n64"],
+    [59, "atari2600"],
+    [60, "atari7800"],
+    [87, "virtualboy"],
+    [119, "ngp"],
+    [120, "ngp"],
+    [57, "wonderswan"],
+    [123, "wonderswan"],
+    [86, "pcengine"],
+    [30, "sega32x"],
+    [62, "jaguar"],
+    [66, "atari5200"],
+    [61, "lynx"],
+    [68, "colecovision"],
+    [20, "nds"],
+    [7, "psx"],
+    [78, "segacd"],
+    [32, "saturn"],
+    [38, "psp"],
 ]);
 
 const SLUG_BY_NORMALIZED_NAME: ReadonlyMap<string, string> = new Map([
@@ -43,11 +61,12 @@ export function resolvePlatformSlug(
     return null;
 }
 
-export function igdbPlatformIdFor(slug: string): number | null {
+export function igdbPlatformIdsFor(slug: string): number[] {
+    const ids: number[] = [];
     for (const [id, mapped] of SLUG_BY_IGDB_PLATFORM_ID) {
-        if (mapped === slug) return id;
+        if (mapped === slug) ids.push(id);
     }
-    return null;
+    return ids.sort((left, right) => left - right);
 }
 
 export function mappedPlatformSlugs(): readonly string[] {

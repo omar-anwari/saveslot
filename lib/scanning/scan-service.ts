@@ -12,6 +12,7 @@ import {
     recordScanEvent,
     startScanRun,
     updateScanCounters,
+    updateScanProgress,
     type ScanCounters,
     type ScanDatabase,
     type ScanMode,
@@ -21,12 +22,22 @@ import { walkLibrary, type DiscoveredFile } from "./walk.ts";
 import { hashRomFile } from "../hashing/rom-hashes.ts";
 
 const BATCH_SIZE = 200;
+const PROGRESS_PERSIST_MS = 250;
+
+type ProgressReporter = (progress: ScanProgress) => void;
+
+export interface ScanProgress {
+    phase: "indexing" | "hashing";
+    done: number;
+    total: number;
+}
 
 export interface RunScanOptions {
     libraryRoot: string;
     mode: ScanMode;
     platformSlug?: string;
     allowFixtures?: boolean;
+    onProgress?: (progress: ScanProgress) => void;
     hashConcurrency?: number;
     algorithms?: readonly HashAlgorithm[];
 }
@@ -116,6 +127,16 @@ async function executeScan(
                 context: { relativePath: warning.relativePath },
             });
         }
+        let lastPersistedAt = 0;
+        const report: ProgressReporter = (progress) => {
+            options.onProgress?.(progress);
+            const at = Date.now();
+            const finished = progress.done >= progress.total;
+            if (finished || at - lastPersistedAt >= PROGRESS_PERSIST_MS) {
+                lastPersistedAt = at;
+                updateScanProgress(db, scanRunId, progress);
+            }
+        };
         const allowFixtures = options.allowFixtures ?? false;
         const discovered = allowFixtures
             ? walk.files
@@ -132,6 +153,7 @@ async function executeScan(
             });
         }
         counters.discovered = discovered.length;
+        let indexed = 0;
         for (const batch of chunk(discovered, BATCH_SIZE)) {
             db.transaction((tx) => {
                 for (const file of batch) {
@@ -150,12 +172,15 @@ async function executeScan(
                 }
             });
             updateScanCounters(db, scanRunId, counters);
+            indexed += batch.length;
+            report({ phase: "indexing", done: indexed, total: discovered.length });
         }
         counters.missing = markMissingFiles(db, scanRunId, options.platformSlug);
         if (options.mode === "full" || options.mode === "hashes-only") {
-            await hashScannedFiles(db, scanRunId, options, counters);
+            await hashScannedFiles(db, scanRunId, options, counters, report);
             updateScanCounters(db, scanRunId, counters);
         }
+        updateScanProgress(db, scanRunId, { phase: null, done: 0, total: 0 });
         counters.unmatched = countUnmatchedGames(db);
         completeScanRun(db, scanRunId, counters);
         return { scanRunId, counters };
@@ -294,6 +319,7 @@ async function hashScannedFiles(
     scanRunId: string,
     options: RunScanOptions,
     counters: ScanCounters,
+    report: ProgressReporter,
 ): Promise<void> {
     const algorithms = options.algorithms ?? DEFAULT_ALGORITHMS;
     const concurrency = options.hashConcurrency ?? 2;
@@ -325,6 +351,8 @@ async function hashScannedFiles(
             : rows.filter((row) =>
                 algorithms.some((algorithm) => row[algorithm] === null),
             );
+    let hashed = 0;
+    report({ phase: "hashing", done: 0, total: targets.length });
     await mapWithConcurrency(targets, concurrency, async (row) => {
         try {
             const absolute = resolveWithinRoot(options.libraryRoot, row.relativePath);
@@ -360,6 +388,9 @@ async function hashScannedFiles(
                     error instanceof Error ? error.message : "Hashing failed.",
                 context: { relativePath: row.relativePath },
             });
+        } finally {
+            hashed += 1;
+            report({ phase: "hashing", done: hashed, total: targets.length });
         }
     });
 }

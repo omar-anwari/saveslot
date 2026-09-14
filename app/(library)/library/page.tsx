@@ -1,7 +1,6 @@
-import { asc } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/db/client";
-import { platforms } from "@/db/schema";
+import { availablePlatforms } from "@/lib/platforms/available";
 import { GAME_SORTS, queryGames, type GameSort } from "@/lib/games/query";
 import { GameCard } from "@/components/library/game-card";
 
@@ -43,11 +42,9 @@ export default async function LibraryPage({
             : "title";
     const pageParam = Number.parseInt(readParam(params.page) ?? "1", 10);
     const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-    const platformRows = db
-        .select({ slug: platforms.slug, name: platforms.name })
-        .from(platforms)
-        .orderBy(asc(platforms.name))
-        .all();
+    const platformRows = availablePlatforms(db).filter(
+        (row) => row.coreInstalled && row.gameCount > 0,
+    );
     const result = queryGames(db, {
         q,
         platform,

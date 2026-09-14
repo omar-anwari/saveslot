@@ -57,6 +57,13 @@
       "when": 1788796828742,
       "tag": "0007_damp_pet_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788827169279,
+      "tag": "0008_panoramic_juggernaut",
+      "breakpoints": true
     }
   ]
 }

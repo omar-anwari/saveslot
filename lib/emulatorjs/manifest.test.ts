@@ -7,6 +7,12 @@ import {
     saveExtension,
 } from "./manifest.ts";
 
+const CORES_WITHOUT_BATTERY_SAVES = new Set([
+    "stella2014",
+    "prosystem",
+    "handy",
+    "ppsspp",
+]);
 const installed = isEmulatorJsInstalled();
 describe.skipIf(!installed)("EmulatorJS core contract", () => {
     it("every platform's core exists in the pinned build", () => {
@@ -24,7 +30,7 @@ describe.skipIf(!installed)("EmulatorJS core contract", () => {
                 const core = findCore(platform.emulatorCore);
                 return core ? saveExtension(core) : null;
             })(),
-        })).filter((entry) => !entry.save);
+        })).filter((entry) => !entry.save && !CORES_WITHOUT_BATTERY_SAVES.has(entry.core));
         expect(withoutSave).toEqual([]);
     });
     it("each platform's extensions are accepted by its core", () => {

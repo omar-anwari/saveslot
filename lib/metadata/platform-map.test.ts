@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLATFORM_REGISTRY } from "../platforms/registry.ts";
 import {
+    igdbPlatformIdsFor,
     mappedPlatformSlugs,
     resolvePlatformSlug,
     unknownMappedSlugs,
@@ -20,7 +21,7 @@ describe("resolvePlatformSlug", () => {
         expect(resolvePlatformSlug(33, "Sega Game Gear")).toBe("gb");
     });
     it("returns null rather than guessing", () => {
-        expect(resolvePlatformSlug(7, "Sony PlayStation")).toBeNull();
+        expect(resolvePlatformSlug(48, "PlayStation 4")).toBeNull();
         expect(resolvePlatformSlug(null, "Bandai WonderSwan")).toBeNull();
         expect(resolvePlatformSlug(null, null)).toBeNull();
     });
@@ -33,5 +34,17 @@ describe("resolvePlatformSlug", () => {
             (platform) => platform.enabled && !mapped.has(platform.slug),
         ).map((platform) => platform.slug);
         expect(missing).toEqual([]);
+    });
+    it("folds a colour variant into the same platform", () => {
+        expect(resolvePlatformSlug(119, "Neo Geo Pocket")).toBe("ngp");
+        expect(resolvePlatformSlug(120, "Neo Geo Pocket Color")).toBe("ngp");
+        expect(resolvePlatformSlug(57, "WonderSwan")).toBe("wonderswan");
+        expect(resolvePlatformSlug(123, "WonderSwan Color")).toBe("wonderswan");
+    });
+    it("returns every id a search should filter on", () => {
+        expect(igdbPlatformIdsFor("ngp")).toEqual([119, 120]);
+        expect(igdbPlatformIdsFor("wonderswan")).toEqual([57, 123]);
+        expect(igdbPlatformIdsFor("nes")).toEqual([18]);
+        expect(igdbPlatformIdsFor("nope")).toEqual([]);
     });
 });

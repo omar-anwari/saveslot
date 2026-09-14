@@ -37,6 +37,7 @@ export interface ScanSummary {
     startedAt: string | null;
     completedAt: string | null;
     errorSummary: string | null;
+    progress: { phase: string; done: number; total: number } | null;
     isRunning: boolean;
 }
 
@@ -73,7 +74,6 @@ export function ScanPanel({
     const [error, setError] = useState<string | null>(null);
     const cursorRef = useRef<number | null>(initialEvents.at(-1)?.id ?? null);
     const scanIdRef = useRef<string | null>(initialScan?.id ?? null);
-
     const loadEvents = useCallback(async (scanId: string) => {
         const url = new URL(
             `/api/scans/${scanId}/events`,
@@ -84,7 +84,6 @@ export function ScanPanel({
         }
         const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) return;
-
         const data = (await response.json()) as {
             events: ScanEventItem[];
             nextCursor: number | null;
@@ -94,14 +93,11 @@ export function ScanPanel({
             setEvents((previous) => [...previous, ...data.events].slice(-200));
         }
     }, []);
-
     const refresh = useCallback(async () => {
         const response = await fetch("/api/scans/current", { cache: "no-store" });
         if (!response.ok) return;
-
         const data = (await response.json()) as { scan: ScanSummary | null };
         setScan(data.scan);
-
         if (data.scan) {
             if (scanIdRef.current !== data.scan.id) {
                 scanIdRef.current = data.scan.id;
@@ -111,9 +107,7 @@ export function ScanPanel({
             await loadEvents(data.scan.id);
         }
     }, [loadEvents]);
-
     const isRunning = scan?.isRunning ?? false;
-
     useEffect(() => {
         const intervalMs = isRunning ? 2000 : 15000;
         const timer = setInterval(() => {
@@ -121,7 +115,30 @@ export function ScanPanel({
         }, intervalMs);
         return () => clearInterval(timer);
     }, [isRunning, refresh]);
-
+    async function startMetadata() {
+        setBusy(true);
+        setError(null);
+        try {
+            const response = await fetch("/api/scans", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                    mode: "metadata-only",
+                    ...(platform ? { platform } : {}),
+                }),
+            });
+            if (!response.ok) {
+                const data = (await response.json()) as { error?: { message?: string } };
+                setError(data.error?.message ?? "The metadata pass could not be started.");
+                return;
+            }
+            await refresh();
+        } catch {
+            setError("The metadata pass could not be started.");
+        } finally {
+            setBusy(false);
+        }
+    }
     async function startScan() {
         setBusy(true);
         setError(null);
@@ -131,7 +148,6 @@ export function ScanPanel({
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({ mode, ...(platform ? { platform } : {}) }),
             });
-
             if (!response.ok) {
                 const data = (await response.json()) as {
                     error?: { message?: string };
@@ -146,14 +162,12 @@ export function ScanPanel({
             setBusy(false);
         }
     }
-
     return (
         <section className="rounded-lg border border-line p-6">
             <h2 className="text-lg font-medium">Library scan</h2>
             <p className="mt-1 text-sm text-muted">
                 {MODE_HELP[mode]}
             </p>
-
             <div className="mt-5 flex flex-wrap items-end gap-4">
                 <div className="flex flex-col gap-1.5">
                     <label htmlFor="scan-mode" className="text-xs text-muted">
@@ -172,7 +186,6 @@ export function ScanPanel({
                         ))}
                     </select>
                 </div>
-
                 <div className="flex flex-col gap-1.5">
                     <label htmlFor="scan-platform" className="text-xs text-muted">
                         Platform
@@ -191,7 +204,6 @@ export function ScanPanel({
                         ))}
                     </select>
                 </div>
-
                 <button
                     type="button"
                     onClick={() => void startScan()}
@@ -200,14 +212,21 @@ export function ScanPanel({
                 >
                     {isRunning ? "Scanning…" : busy ? "Starting…" : "Run scan"}
                 </button>
+                <button
+                    type="button"
+                    onClick={() => void startMetadata()}
+                    disabled={busy || isRunning}
+                    className="rounded border border-line px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    title="Match hashes against providers, then fetch titles and cover art"
+                >
+                    Match metadata
+                </button>
             </div>
-
             {error ? (
                 <p role="alert" className="mt-4 text-sm text-warning">
                     {error}
                 </p>
             ) : null}
-
             <div aria-live="polite" className="mt-6">
                 {scan === null ? (
                     <p className="text-sm text-muted">
@@ -224,7 +243,37 @@ export function ScanPanel({
                             ) : null}{" "}
                             <span className="text-muted">—</span> {scan.status.replace(/_/g, " ")}
                         </p>
-
+                        {scan.progress === null ? null : (
+                            <div className="mt-3">
+                                <div
+                                    role="progressbar"
+                                    aria-valuemin={0}
+                                    aria-valuemax={scan.progress.total}
+                                    aria-valuenow={scan.progress.done}
+                                    aria-label={`Scan ${scan.progress.phase}`}
+                                    className="h-2 w-full overflow-hidden rounded border border-line bg-surface"
+                                >
+                                    <div
+                                        className="h-full bg-accent transition-[width] duration-300"
+                                        style={{
+                                            width: `${scan.progress.total > 0
+                                                ? Math.min(
+                                                    100,
+                                                    Math.round(
+                                                        (scan.progress.done / scan.progress.total) * 100,
+                                                    ),
+                                                )
+                                                : 100
+                                                }%`,
+                                        }}
+                                    />
+                                </div>
+                                <p className="mt-1 text-xs text-muted tabular-nums">
+                                    {scan.progress.phase} — {scan.progress.done} of{" "}
+                                    {scan.progress.total}
+                                </p>
+                            </div>
+                        )}
                         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
                             {(
                                 [
@@ -249,7 +298,6 @@ export function ScanPanel({
                     </>
                 )}
             </div>
-
             {events.length > 0 ? (
                 <div className="mt-6">
                     <h3 className="text-sm font-medium">Scan log</h3>

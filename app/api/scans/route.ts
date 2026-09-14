@@ -6,6 +6,7 @@ import { errorResponse } from "../errors";
 import { ScanInProgressError } from "@/lib/scanning/scan-lock";
 import { startScan } from "@/lib/scanning/scan-service";
 import { scanEnvironmentOptions } from "@/lib/scanning/scan-options";
+import { startMetadataRun } from "@/lib/metadata/metadata-jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,14 @@ export async function POST(request: Request) {
         platformSlug = input.platform;
     }
     try {
+        if (mode === "metadata-only") {
+            const { scanRunId, completion } = startMetadataRun(db, { platformSlug });
+            completion.catch(() => undefined);
+            return NextResponse.json(
+                { scanRunId, mode, platform: platformSlug ?? null, status: "running" },
+                { status: 202 },
+            );
+        }
         const { scanRunId, completion } = startScan(db, {
             ...scanEnvironmentOptions(),
             mode,

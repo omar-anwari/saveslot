@@ -205,6 +205,9 @@ export const scanRuns = sqliteTable(
     startedAt: integer("started_at", { mode: "timestamp" }),
     completedAt: integer("completed_at", { mode: "timestamp" }),
     errorSummary: text("error_summary"),
+    progressPhase: text("progress_phase"),
+    progressDone: integer("progress_done").notNull().default(0),
+    progressTotal: integer("progress_total").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),

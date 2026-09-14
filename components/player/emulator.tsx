@@ -68,6 +68,7 @@ export interface EmulatorProps {
     gameId: number;
     gameName: string;
     core: string;
+    hasBatterySave: boolean;
     contentUrl: string;
     dataPath: string;
     threads: "auto" | "on" | "off";
@@ -106,6 +107,7 @@ export function Emulator({
     gameId,
     gameName,
     core,
+    hasBatterySave,
     contentUrl,
     dataPath,
     threads,
@@ -327,7 +329,14 @@ export function Emulator({
                 return;
             }
             if (cancelled) return;
-            if (initialSave) {
+            if (!hasBatterySave) {
+                if (!cancelled) {
+                    setState({
+                        kind: "idle",
+                        message: "This system has no battery save — use Save State to keep progress.",
+                    });
+                }
+            } else if (initialSave) {
                 setState({ kind: "restoring" });
                 let step = "starting";
                 try {
@@ -396,12 +405,14 @@ export function Emulator({
                 setStatesSupported(false);
             }
             void refreshStates();
-            timer = setInterval(() => {
-                if (document.visibilityState !== "visible") return;
-                void pushSave("interval").then((next) => {
-                    if (!cancelled) setState(next);
-                });
-            }, saveIntervalMs);
+            if (hasBatterySave) {
+                timer = setInterval(() => {
+                    if (document.visibilityState !== "visible") return;
+                    void pushSave("interval").then((next) => {
+                        if (!cancelled) setState(next);
+                    });
+                }, saveIntervalMs);
+            }
         }
         void begin();
         const beat = setInterval(() => {
@@ -425,7 +436,7 @@ export function Emulator({
             clearInterval(beat);
             window.removeEventListener("pagehide", onPageHide);
         };
-    }, [initialSave, pushSave, refreshStates, saveIntervalMs, core, gameSlug]);
+    }, [initialSave, pushSave, refreshStates, saveIntervalMs, core, gameSlug, hasBatterySave]);
     async function saveAndQuit() {
         if (quitting) return;
         setQuitting(true);
@@ -454,28 +465,32 @@ export function Emulator({
         await adapter.pause();
         await sleep(QUIT_SETTLE_MS);
         record("Emulation paused", "ok", `Settled for ${QUIT_SETTLE_MS}ms.`);
-        const saveResult = await pushSave("quit");
-        switch (saveResult.kind) {
-            case "synced":
-                record("Battery save", "ok", "Uploaded.");
-                break;
-            case "unchanged":
-                record("Battery save", "ok", "Unchanged since the last sync.");
-                break;
-            case "conflict":
-                record(
-                    "Battery save",
-                    "failed",
-                    "Another tab saved more recently; your copy was kept as a separate save.",
-                );
-                break;
-            default:
-                record(
-                    "Battery save",
-                    "failed",
-                    saveResult.kind === "failed" ? saveResult.message : "The upload failed.",
-                );
-                break;
+        if (!hasBatterySave) {
+            record("Battery save", "skipped", "This system has none.");
+        } else {
+            const saveResult = await pushSave("quit");
+            switch (saveResult.kind) {
+                case "synced":
+                    record("Battery save", "ok", "Uploaded.");
+                    break;
+                case "unchanged":
+                    record("Battery save", "ok", "Unchanged since the last sync.");
+                    break;
+                case "conflict":
+                    record(
+                        "Battery save",
+                        "failed",
+                        "Another tab saved more recently; your copy was kept as a separate save.",
+                    );
+                    break;
+                default:
+                    record(
+                        "Battery save",
+                        "failed",
+                        saveResult.kind === "failed" ? saveResult.message : "The upload failed.",
+                    );
+                    break;
+            }
         }
         if (!CAPTURE_AUTOSAVE_ON_QUIT) {
             record("Autosave state", "skipped", "Turned off.");

@@ -18,6 +18,14 @@ export function serializeScanRun(run: ScanRun) {
         startedAt: run.startedAt?.toISOString() ?? null,
         completedAt: run.completedAt?.toISOString() ?? null,
         errorSummary: run.errorSummary,
+        progress:
+            run.progressPhase === null
+                ? null
+                : {
+                      phase: run.progressPhase,
+                      done: run.progressDone,
+                      total: run.progressTotal,
+                  },
         isRunning: run.status === "running",
     };
 }

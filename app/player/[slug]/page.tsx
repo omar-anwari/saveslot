@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Emulator } from "@/components/player/emulator";
+import { coreHasBatterySave } from "@/lib/emulatorjs/manifest";
 import { db } from "@/db/client";
 import { games } from "@/db/schema";
 import { env } from "@/lib/config/env";
@@ -88,6 +89,7 @@ export default async function PlayerPage({
                 gameId={row.id}
                 gameName={game.title}
                 core={game.platform.emulatorCore}
+                hasBatterySave={coreHasBatterySave(game.platform.emulatorCore)}
                 contentUrl={`/api/games/${slug}/content`}
                 dataPath={env.EMULATORJS_DATA_PATH}
                 threads={env.EMULATORJS_THREADS}
