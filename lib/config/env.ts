@@ -39,7 +39,7 @@ const EnvSchema = z.object({
     SCREENSCRAPER_DEV_PASSWORD: z.string().default(""),
     SCAN_HASH_ALGORITHMS: z.string().default("crc32,md5,sha1"),
     SCAN_CONCURRENCY: z.coerce.number().int().positive().max(32).default(2),
-    METADATA_CONCURRENCY: z.coerce.number().int().positive().max(16).default(3),
+    METADATA_CONCURRENCY: z.coerce.number().int().positive().max(16).default(1),
     METADATA_REQUEST_DELAY_MS: z.coerce.number().int().nonnegative().default(250),
     METADATA_REQUEST_TIMEOUT_MS: z.coerce
         .number()

@@ -3,6 +3,7 @@ import { PLATFORM_BY_SLUG } from "../platforms/registry.ts";
 const SLUG_BY_IGDB_PLATFORM_ID: ReadonlyMap<number, string> = new Map([
     [18, "nes"],
     [19, "snes"],
+    [58, "snes"],
     [33, "gb"],
     [22, "gbc"],
     [24, "gba"],
@@ -18,6 +19,7 @@ const SLUG_BY_IGDB_PLATFORM_ID: ReadonlyMap<number, string> = new Map([
     [57, "wonderswan"],
     [123, "wonderswan"],
     [86, "pcengine"],
+    [128, "pcengine"],
     [30, "sega32x"],
     [62, "jaguar"],
     [66, "atari5200"],

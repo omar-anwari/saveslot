@@ -6,6 +6,7 @@ import {
     scoreTitleMatch,
     searchableTitle,
     titleSimilarity,
+    withoutCataloguePrefix,
 } from "./title-match.ts";
 
 describe("comparableTitle", () => {
@@ -104,5 +105,42 @@ describe("searchableTitle", () => {
     it("keeps case, punctuation and order, unlike comparableTitle", () => {
         expect(searchableTitle("Chrono Trigger")).toBe("Chrono Trigger");
         expect(comparableTitle("Chrono Trigger")).toBe("chrono trigger");
+    });
+});
+describe("withoutCataloguePrefix", () => {
+    it("drops a scene index", () => {
+        expect(withoutCataloguePrefix("4432 - Rockman EXE - Operate Shooting Star"))
+            .toBe("Rockman EXE - Operate Shooting Star");
+        expect(withoutCataloguePrefix("0123 - Some Game")).toBe("Some Game");
+    });
+    it("leaves numbers that are part of the name", () => {
+        expect(withoutCataloguePrefix("1942")).toBe("1942");
+        expect(withoutCataloguePrefix("007: Everything or Nothing"))
+            .toBe("007: Everything or Nothing");
+        expect(withoutCataloguePrefix("2 Fast 2 Furious")).toBe("2 Fast 2 Furious");
+    });
+    it("keeps the original when stripping would leave nothing useful", () => {
+        expect(withoutCataloguePrefix("12 - AB")).toBe("12 - AB");
+    });
+});
+describe("scoring a title that carries a catalogue index", () => {
+    it("matches the indexed filename to the provider's name", () => {
+        const result = scoreTitleMatch({
+            wantedTitle: "4432 - Rockman EXE - Operate Shooting Star (JP)(BAHAMUT)",
+            candidateTitle: "Rockman.EXE: Operate Shooting Star",
+            wantedYear: null,
+            candidateYear: null,
+        });
+        expect(result.score).toBeGreaterThanOrEqual(TITLE_MATCH_MIN_SCORE);
+        expect(result.reasons.map((reason) => reason.code)).toContain("title.exact");
+    });
+    it("does not make unrelated titles match", () => {
+        const result = scoreTitleMatch({
+            wantedTitle: "4432 - Rockman EXE",
+            candidateTitle: "Chrono Trigger",
+            wantedYear: null,
+            candidateYear: null,
+        });
+        expect(result.score).toBe(0);
     });
 });

@@ -97,9 +97,6 @@ async function execute(
                 message: identify.abortedReason,
                 context: { phase: "identifying" },
             });
-            updateScanProgress(db, scanRunId, { phase: null, done: 0, total: 0 });
-            completeScanRun(db, scanRunId, counters);
-            return;
         }
         if (enricher === null) {
             recordScanEvent(db, scanRunId, {

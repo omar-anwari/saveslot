@@ -8,6 +8,7 @@ export interface EnrichmentCandidateInput {
     inheritedScore: number;
     identityProviderKey: string;
     identityDetail: string;
+    manual?: boolean;
 }
 
 export function enrichmentCandidate(input: EnrichmentCandidateInput): MetadataCandidate {
@@ -40,13 +41,14 @@ export function enrichmentCandidate(input: EnrichmentCandidateInput): MetadataCa
             detail: `Lists ${known.join(", ")}, not ${input.platformSlug}.`,
         });
     }
+    const accepted = agrees || unknown || input.manual === true;
     return {
         providerKey: input.providerKey,
         providerGameId: input.providerGameId,
-        score: agrees || unknown ? input.inheritedScore : 0,
+        score: accepted ? input.inheritedScore : 0,
         matchType: "title",
         reasons,
-        platformSlug: agrees || unknown ? input.platformSlug : null,
+        platformSlug: accepted ? input.platformSlug : null,
         metadata: input.metadata,
     };
 }

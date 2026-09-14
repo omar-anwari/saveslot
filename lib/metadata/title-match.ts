@@ -31,6 +31,11 @@ export function searchableTitle(raw: string): string {
         .trim();
 }
 
+export function withoutCataloguePrefix(title: string): string {
+    const stripped = title.replace(/^\s*\d{1,5}\s+[-–—]\s+/, "").trim();
+    return stripped.length >= 3 ? stripped : title;
+}
+
 function bigrams(value: string): Map<string, number> {
     const counts = new Map<string, number>();
     for (let index = 0; index + 1 < value.length; index += 1) {
@@ -74,10 +79,15 @@ export interface TitleMatchScore {
 
 export function scoreTitleMatch(input: TitleMatchInput): TitleMatchScore {
     const reasons: MatchReason[] = [];
-    const similarity = titleSimilarity(input.wantedTitle, input.candidateTitle);
-    const exact =
-        comparableTitle(input.wantedTitle) === comparableTitle(input.candidateTitle) &&
-        comparableTitle(input.wantedTitle).length > 0;
+    const wantedForms = [input.wantedTitle, withoutCataloguePrefix(input.wantedTitle)];
+    const candidateKey = comparableTitle(input.candidateTitle);
+    let similarity = 0;
+    let exact = false;
+    for (const form of wantedForms) {
+        similarity = Math.max(similarity, titleSimilarity(form, input.candidateTitle));
+        const key = comparableTitle(form);
+        if (key.length > 0 && key === candidateKey) exact = true;
+    }
     let score = 0;
     if (exact) {
         score += 0.65;

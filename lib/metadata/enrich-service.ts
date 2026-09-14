@@ -26,6 +26,7 @@ export interface EnrichOptions {
     signal?: AbortSignal;
     now?: Date;
     forceRefresh?: boolean;
+    forceExternalId?: string;
 }
 
 function done(
@@ -67,7 +68,12 @@ export async function enrichGame(
     const now = options.now ?? new Date();
     const source = options.externalSource ?? "IGDB";
     const game = db
-        .select({ id: games.id, platformSlug: platforms.slug, releaseYear: games.releaseYear })
+        .select({
+            id: games.id,
+            platformSlug: platforms.slug,
+            releaseYear: games.releaseYear,
+            title: games.title,
+        })
         .from(games)
         .innerJoin(platforms, eq(games.platformId, platforms.id))
         .where(eq(games.id, gameId))
@@ -79,10 +85,7 @@ export async function enrichGame(
         .where(and(eq(metadataCandidates.gameId, gameId), eq(metadataCandidates.matchType, "hash")))
         .orderBy(desc(metadataCandidates.score))
         .get();
-    if (identity === undefined) {
-        return done(gameId, "skipped", "Not identified yet; run the metadata pass first.");
-    }
-    if (options.forceRefresh !== true) {
+    if (options.forceRefresh !== true && options.forceExternalId === undefined) {
         const already = db
             .select()
             .from(metadataCandidates)
@@ -97,7 +100,9 @@ export async function enrichGame(
         const stored = already === undefined ? null : readMetadata(already.metadataJson);
         if (stored !== null) return done(gameId, "reused", null, stored.title);
     }
-    const externalId = externalIdFrom(identity.metadataJson, source);
+    const externalId =
+        options.forceExternalId ??
+        (identity === undefined ? null : externalIdFrom(identity.metadataJson, source));
     let toStore: MetadataCandidate[] = [];
     let chosen: MetadataCandidate | null = null;
     let rejection: string | null = null;
@@ -110,9 +115,13 @@ export async function enrichGame(
                 providerGameId: externalId,
                 metadata,
                 platformSlug: game.platformSlug,
-                inheritedScore: identity.score,
-                identityProviderKey: identity.providerKey,
-                identityDetail: `Identity from ${identity.providerKey} (${identity.title}), scored ${identity.score.toFixed(2)}.`,
+                inheritedScore: identity?.score ?? 1,
+                identityProviderKey: identity?.providerKey ?? "manual",
+                identityDetail:
+                    identity === undefined
+                        ? "Chosen by hand from a provider search."
+                        : `Identity from ${identity.providerKey} (${identity.title}), scored ${identity.score.toFixed(2)}.`,
+                manual: options.forceExternalId !== undefined,
             });
             if (chosen.platformSlug === null) {
                 rejection = chosen.reasons.at(-1)?.detail ?? "Platform disagreement.";
@@ -122,9 +131,10 @@ export async function enrichGame(
                 toStore = [chosen];
             }
         } else {
+            const searchTitle = identity?.title ?? game.title;
             const results = await options.provider.searchByTitle(
                 {
-                    title: identity.title,
+                    title: searchTitle,
                     platformSlug: game.platformSlug,
                     releaseYear: game.releaseYear,
                     limit: SEARCH_LIMIT,
@@ -133,7 +143,7 @@ export async function enrichGame(
             );
             toStore = results.slice(0, SEARCH_STORE_LIMIT);
             if (toStore.length === 0) {
-                return done(gameId, "not_found", `${source} found nothing for "${identity.title}".`);
+                return done(gameId, "not_found", `${source} found nothing for "${searchTitle}".`);
             }
             const best = chooseBest(toStore.map((item) => ({ item, score: item.score })));
             rejection = best?.rejected ?? "No usable result.";

@@ -204,11 +204,12 @@ describe("enrichGame", () => {
         expect(game?.title).toBe("Zelda 2 - The Adventure Of Link");
         expect(game?.publisher).toBe("Nintendo");
     });
-    it("skips a game nothing has identified", async () => {
-        const { provider, getGame } = fakeProvider(igdbMetadata());
+    it("searches rather than skipping when nothing identified the game", async () => {
+        const { provider, getGame, searchByTitle } = fakeProvider(igdbMetadata());
         const result = await enrichGame(handle.db, gameId, { provider, now });
-        expect(result.outcome).toBe("skipped");
-        expect(result.message).toContain("Not identified");
+        expect(result.outcome).toBe("not_found");
+        expect(result.message).toContain("found nothing");
+        expect(searchByTitle).toHaveBeenCalled();
         expect(getGame).not.toHaveBeenCalled();
     });
     it("falls back to a title search when the identity carries no id", async () => {
@@ -301,5 +302,40 @@ describe("enrichGame by title search", () => {
         const result = await enrichGame(handle.db, gameId, { provider, now });
         expect(result.outcome).toBe("not_found");
         expect(result.message).toContain("found nothing");
+    });
+});
+
+describe("enrichGame without a hash match", () => {
+    it("searches by the filename title when nothing identified the game", async () => {
+        const { provider, searchByTitle, getGame } = fakeProvider(null, [
+            searchHit("Zelda II: The Adventure of Link", "1025", 0.95),
+        ]);
+        const result = await enrichGame(handle.db, gameId, { provider, now });
+        expect(result.outcome).toBe("enriched");
+        expect(getGame).not.toHaveBeenCalled();
+        expect(searchByTitle.mock.calls[0]?.[0]).toMatchObject({
+            title: "Zelda 2 - The Adventure Of Link",
+            platformSlug: "nes",
+        });
+        expect(handle.db.select().from(games).where(eq(games.id, gameId)).get()?.title)
+            .toBe("Zelda II: The Adventure of Link");
+    });
+    it("still refuses an ambiguous search with no hash to fall back on", async () => {
+        const { provider } = fakeProvider(null, [
+            searchHit("Zelda II", "1", 0.9),
+            searchHit("Zelda II: Remastered", "2", 0.87),
+        ]);
+        const result = await enrichGame(handle.db, gameId, { provider, now });
+        expect(result.outcome).toBe("skipped");
+        expect(result.message).toContain("Too close");
+    });
+    it("prefers a hash identity's id over searching", async () => {
+        addIdentity();
+        const { provider, searchByTitle, getGame } = fakeProvider(igdbMetadata(), [
+            searchHit("Something Else", "999", 0.95),
+        ]);
+        await enrichGame(handle.db, gameId, { provider, now });
+        expect(getGame).toHaveBeenCalledWith("1025", undefined);
+        expect(searchByTitle).not.toHaveBeenCalled();
     });
 });

@@ -14,6 +14,18 @@ export interface EditorCandidate {
     externalIds: { source: string; id: string; url: string | null }[];
 }
 
+interface SearchResult {
+    providerGameId: string;
+    title: string;
+    score: number;
+    releaseYear: number | null;
+    publisher: string | null;
+    summary: string | null;
+    coverUrl: string | null;
+    platformSlugs: string[];
+    url: string | null;
+}
+
 export interface MetadataEditorProps {
     slug: string;
     filenameTitle: string;
@@ -73,6 +85,9 @@ export function MetadataEditor({
         setValues(initial);
     }
     const [busy, setBusy] = useState(false);
+    const [query, setQuery] = useState(initial.title);
+    const [results, setResults] = useState<SearchResult[] | null>(null);
+    const [searching, setSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [note, setNote] = useState<string | null>(null);
     const [, startTransition] = useTransition();
@@ -100,6 +115,39 @@ export function MetadataEditor({
         } finally {
             setBusy(false);
         }
+    }
+    async function search() {
+        setSearching(true);
+        setError(null);
+        setNote(null);
+        try {
+            const response = await fetch(`/api/games/${slug}/metadata/search`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(query.trim().length > 0 ? { query: query.trim() } : {}),
+            });
+            const data = (await response.json().catch(() => ({}))) as {
+                results?: SearchResult[];
+                error?: { message?: string };
+            };
+            if (!response.ok) {
+                setError(data.error?.message ?? "The search failed.");
+                return;
+            }
+            setResults(data.results ?? []);
+        } catch {
+            setError("The search failed.");
+        } finally {
+            setSearching(false);
+        }
+    }
+    function apply(result: SearchResult) {
+        void send(
+            `/api/games/${slug}/metadata/apply`,
+            "POST",
+            { providerGameId: result.providerGameId },
+            `Applied ${result.title}.`,
+        ).then(() => setResults(null));
     }
     function save() {
         const set: Record<string, unknown> = {};
@@ -203,6 +251,113 @@ export function MetadataEditor({
                 </p>
             ) : null}
             {note ? <p className="mt-3 text-sm text-muted">{note}</p> : null}
+            <div className="mt-8 border-t border-line pt-6">
+                <h3 className="text-sm font-medium text-muted">Find this game</h3>
+                <p className="mt-1 text-xs text-muted">
+                    Searches the configured provider by name. Nothing is saved until you
+                    choose a result.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                    <input
+                        type="text"
+                        value={query}
+                        disabled={searching || busy}
+                        onChange={(event) => setQuery(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                                event.preventDefault();
+                                void search();
+                            }
+                        }}
+                        aria-label="Search terms"
+                        className="min-w-64 flex-1 rounded border border-line bg-surface px-3 py-2 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => void search()}
+                        disabled={searching || busy || query.trim().length < 2}
+                        className="rounded border border-line px-4 py-2 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                        {searching ? "Searching…" : "Search"}
+                    </button>
+                    {results === null ? null : (
+                        <button
+                            type="button"
+                            onClick={() => setResults(null)}
+                            disabled={busy}
+                            className="rounded px-3 py-2 text-sm text-muted underline underline-offset-2 disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
+                {results === null ? null : results.length === 0 ? (
+                    <p className="mt-4 text-sm text-muted">
+                        Nothing found for “{query.trim()}”. Try a shorter or more common
+                        form of the name — a fan-translation or region tag will not match.
+                    </p>
+                ) : (
+                    <ul className="mt-4 space-y-3">
+                        {results.map((result) => (
+                            <li
+                                key={result.providerGameId}
+                                className="flex gap-4 rounded-md border border-line p-4"
+                            >
+                                {result.coverUrl === null ? null : (
+                                    /* eslint-disable-next-line @next/next/no-img-element */
+                                    <img
+                                        src={result.coverUrl}
+                                        alt=""
+                                        loading="lazy"
+                                        referrerPolicy="no-referrer"
+                                        className="h-24 w-auto shrink-0 rounded"
+                                    />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                        <span className="text-sm font-medium">{result.title}</span>
+                                        <span className="text-xs text-muted">
+                                            {result.releaseYear ?? "year unknown"}
+                                            {result.publisher === null ? "" : ` · ${result.publisher}`}
+                                            {` · ${Math.round(result.score * 100)}% match`}
+                                        </span>
+                                    </div>
+                                    {result.summary === null ? null : (
+                                        <p className="mt-1 line-clamp-2 text-xs text-muted">
+                                            {result.summary}
+                                        </p>
+                                    )}
+                                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => apply(result)}
+                                            disabled={busy}
+                                            className="rounded bg-accent px-3 py-1 text-xs font-medium text-accent-contrast disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                        >
+                                            Use this
+                                        </button>
+                                        {result.url === null ? null : (
+                                            <a
+                                                href={result.url}
+                                                target="_blank"
+                                                rel="noreferrer noopener"
+                                                className="text-xs underline underline-offset-2"
+                                            >
+                                                View on the provider
+                                            </a>
+                                        )}
+                                        {result.platformSlugs.length === 0 ? null : (
+                                            <span className="text-xs text-muted">
+                                                {result.platformSlugs.join(", ")}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
             {candidates.length > 0 ? (
                 <div className="mt-8">
                     <h3 className="text-sm font-medium text-muted">Candidates</h3>

@@ -13,7 +13,7 @@ import {
 } from "../types.ts";
 import { IGDB_KEY, type IgdbClient } from "./igdb-client.ts";
 import { enrichmentCandidate } from "../candidate.ts";
-import { scoreTitleMatch, searchableTitle } from "../title-match.ts";
+import { scoreTitleMatch, searchableTitle, withoutCataloguePrefix } from "../title-match.ts";
 
 export { IGDB_KEY };
 export const GAME_FIELDS = [
@@ -165,13 +165,20 @@ export function createIgdbProvider(options: IgdbOptions): MetadataProvider {
             if (term.length < 2) return [];
             const platformId = igdbPlatformIdsFor(input.platformSlug);
             const limit = Math.min(Math.max(input.limit, 1), 20);
-            const clauses = [
-                `search ${quoteApicalypse(term)};`,
-                `fields ${GAME_FIELDS};`,
-                platformId.length === 0 ? "" : `where platforms = (${platformId.join(",")});`,
-                `limit ${limit};`,
-            ].filter((clause) => clause.length > 0);
-            const rows = await options.client.query<unknown[]>("games", clauses.join(" "), signal);
+            const run = async (searchTerm: string): Promise<unknown[]> => {
+                const clauses = [
+                    `search ${quoteApicalypse(searchTerm)};`,
+                    `fields ${GAME_FIELDS};`,
+                    platformId.length === 0 ? "" : `where platforms = (${platformId.join(",")});`,
+                    `limit ${limit};`,
+                ].filter((clause) => clause.length > 0);
+                return options.client.query<unknown[]>("games", clauses.join(" "), signal);
+            };
+            let rows = await run(term);
+            if (rows.length === 0) {
+                const withoutIndex = withoutCataloguePrefix(term);
+                if (withoutIndex !== term) rows = await run(withoutIndex);
+            }
             const candidates: MetadataCandidate[] = [];
             for (const row of rows) {
                 const metadata = normalizeIgdbGame(row);

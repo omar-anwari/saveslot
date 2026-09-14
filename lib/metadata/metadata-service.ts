@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { forEachWithConcurrency } from "../scanning/concurrency.ts";
-import { games, metadataCandidates, platforms } from "../../db/schema.ts";
+import { games, platforms } from "../../db/schema.ts";
 import { enrichGame, type EnrichGameResult } from "./enrich-service.ts";
 import type { MetadataDatabase } from "./lookup-cache.ts";
 import { identifyGame, type MatchGameResult } from "./match-service.ts";
@@ -143,7 +143,7 @@ export async function runEnrichmentPass(
     db: MetadataDatabase,
     options: RunEnrichmentOptions,
 ): Promise<RunEnrichmentSummary> {
-    const conditions = [eq(metadataCandidates.matchType, "hash")];
+    const conditions = [];
     if (options.platformSlug !== undefined) {
         conditions.push(eq(platforms.slug, options.platformSlug));
     }
@@ -151,8 +151,7 @@ export async function runEnrichmentPass(
         .selectDistinct({ id: games.id })
         .from(games)
         .innerJoin(platforms, eq(games.platformId, platforms.id))
-        .innerJoin(metadataCandidates, eq(metadataCandidates.gameId, games.id))
-        .where(and(...conditions))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(games.id)
         .$dynamic();
     if (options.limit !== undefined) query = query.limit(options.limit);
