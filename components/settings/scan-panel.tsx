@@ -18,6 +18,14 @@ const MODE_HELP: Record<ScanMode, string> = {
     "hashes-only": "Compute missing hashes without contacting providers.",
 };
 
+const MODE_LABEL: Record<ScanMode, string> = {
+    quick: "Quick scan",
+    full: "Full scan",
+    unmatched: "Find unmatched games",
+    "metadata-only": "Refresh metadata",
+    "hashes-only": "Verify files",
+};
+
 interface ScanCounters {
     discovered: number;
     added: number;
@@ -163,13 +171,13 @@ export function ScanPanel({
         }
     }
     return (
-        <section className="rounded-lg border border-line p-6">
-            <h2 className="text-lg font-medium">Library scan</h2>
+        <section className="rounded-lg border border-line bg-surface p-5 sm:p-7">
+            <h2 className="text-lg font-semibold">Library scan</h2>
             <p className="mt-1 text-sm text-muted">
                 {MODE_HELP[mode]}
             </p>
             <div className="mt-5 flex flex-wrap items-end gap-4">
-                <div className="flex flex-col gap-1.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-none">
                     <label htmlFor="scan-mode" className="text-xs text-muted">
                         Mode
                     </label>
@@ -177,26 +185,26 @@ export function ScanPanel({
                         id="scan-mode"
                         value={mode}
                         onChange={(event) => setMode(event.target.value as ScanMode)}
-                        className="min-w-40 rounded border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
+                        className="min-h-11 w-full min-w-40 rounded-sm border border-line-strong bg-elevated px-3 py-2 text-sm"
                     >
                         {SCAN_MODES.map((value) => (
                             <option key={value} value={value}>
-                                {value}
+                                {MODE_LABEL[value]}
                             </option>
                         ))}
                     </select>
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-none">
                     <label htmlFor="scan-platform" className="text-xs text-muted">
-                        Platform
+                        System
                     </label>
                     <select
                         id="scan-platform"
                         value={platform}
                         onChange={(event) => setPlatform(event.target.value)}
-                        className="min-w-48 rounded border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
+                        className="min-h-11 w-full min-w-48 rounded-sm border border-line-strong bg-elevated px-3 py-2 text-sm"
                     >
-                        <option value="">All platforms</option>
+                        <option value="">All systems</option>
                         {platforms.map((option) => (
                             <option key={option.slug} value={option.slug}>
                                 {option.name}
@@ -208,7 +216,7 @@ export function ScanPanel({
                     type="button"
                     onClick={() => void startScan()}
                     disabled={busy || isRunning}
-                    className="rounded bg-accent px-4 py-2 text-sm font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="button-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {isRunning ? "Scanning…" : busy ? "Starting…" : "Run scan"}
                 </button>
@@ -216,7 +224,7 @@ export function ScanPanel({
                     type="button"
                     onClick={() => void startMetadata()}
                     disabled={busy || isRunning}
-                    className="rounded border border-line px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="button-secondary disabled:cursor-not-allowed disabled:opacity-50"
                     title="Match hashes against providers, then fetch titles and cover art"
                 >
                     Match metadata
@@ -274,7 +282,7 @@ export function ScanPanel({
                                 </p>
                             </div>
                         )}
-                        <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
+                        <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 xl:grid-cols-6">
                             {(
                                 [
                                     ["Discovered", scan.counters.discovered],
@@ -285,9 +293,9 @@ export function ScanPanel({
                                     ["Errors", scan.counters.errors],
                                 ] as const
                             ).map(([label, value]) => (
-                                <div key={label} className="flex justify-between gap-3">
-                                    <dt className="text-muted">{label}</dt>
-                                    <dd className="font-mono tabular-nums">{value}</dd>
+                                <div key={label} className="rounded-md border border-line bg-elevated p-4">
+                                    <dt className="text-xs text-muted">{label}</dt>
+                                    <dd className="mt-2 text-xl font-medium tabular-nums">{value}</dd>
                                 </div>
                             ))}
                         </dl>
@@ -299,19 +307,19 @@ export function ScanPanel({
                 )}
             </div>
             {events.length > 0 ? (
-                <div className="mt-6">
-                    <h3 className="text-sm font-medium">Scan log</h3>
-                    <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-xs">
+                <details className="mt-6 border-t border-line pt-5">
+                    <summary className="cursor-pointer text-sm font-medium text-muted hover:text-ink">Scan activity <span className="text-subtle">({events.length})</span></summary>
+                    <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-md bg-elevated p-4 text-xs">
                         {events.map((event) => (
                             <li key={event.id} className="flex gap-2">
                                 <span className="w-16 shrink-0 font-mono uppercase text-muted">
                                     {event.level}
                                 </span>
-                                <span>{event.message}</span>
+                                <span className="min-w-0 break-words">{event.message}</span>
                             </li>
                         ))}
                     </ul>
-                </div>
+                </details>
             ) : null}
         </section>
     );

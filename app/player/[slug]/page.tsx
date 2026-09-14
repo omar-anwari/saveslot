@@ -8,6 +8,7 @@ import { games } from "@/db/schema";
 import { env } from "@/lib/config/env";
 import { getGameDetail } from "@/lib/games/query";
 import { currentSave } from "@/lib/saves/storage";
+import { getSaveState } from "@/lib/saves/states";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,14 @@ export async function generateMetadata({
 }
 function Blocked({ slug, message }: { slug: string; message: string }) {
     return (
-        <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-            <p className="text-sm">{message}</p>
+        <main className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center px-6 text-center">
+            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-line bg-surface text-2xl text-accent-hover" aria-hidden="true">▷</div>
+            <p className="eyebrow">PLAYER</p>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight">We couldn’t start this game</h1>
+            <p className="mt-4 text-sm leading-relaxed text-muted">{message}</p>
             <Link
                 href={`/games/${slug}`}
-                className="text-sm text-accent underline-offset-4 hover:underline"
+                className="button-primary mt-7"
             >
                 Back to the game
             </Link>
@@ -36,8 +40,10 @@ function Blocked({ slug, message }: { slug: string; message: string }) {
 
 export default async function PlayerPage({
     params,
+    searchParams,
 }: {
     params: Promise<{ slug: string }>;
+    searchParams: Promise<{ state?: string }>;
 }) {
     const { slug } = await params;
     const game = getGameDetail(db, slug);
@@ -76,18 +82,18 @@ export default async function PlayerPage({
         );
     }
     const existing = currentSave(db, row.id, game.platform.emulatorCore);
+    const stateId = (await searchParams).state;
+    const selectedState = stateId ? getSaveState(db, stateId) : null;
+    if (stateId && (!selectedState || selectedState.gameId !== row.id || selectedState.coreKey !== game.platform.emulatorCore)) {
+        return <Blocked slug={slug} message="This save state is no longer available for this game and system. Choose another save from the game page." />;
+    }
     return (
         <div className="fixed inset-0 overflow-hidden bg-black">
-            <a
-                href={`/games/${slug}`}
-                className="absolute left-4 top-4 z-50 rounded bg-black/60 px-3 py-1.5 text-sm text-white/90 backdrop-blur focus-visible:outline-2 focus-visible:outline-white"
-            >
-                ← Exit
-            </a>
             <Emulator
                 gameSlug={slug}
                 gameId={row.id}
                 gameName={game.title}
+                platformName={game.platform.name}
                 core={game.platform.emulatorCore}
                 hasBatterySave={coreHasBatterySave(game.platform.emulatorCore)}
                 contentUrl={`/api/games/${slug}/content`}
@@ -99,6 +105,7 @@ export default async function PlayerPage({
                         ? { id: existing.id, checksumSha256: existing.checksumSha256 }
                         : null
                 }
+                initialState={selectedState ? { id: selectedState.id, checksumSha256: selectedState.checksumSha256 } : null}
             />
         </div>
     );

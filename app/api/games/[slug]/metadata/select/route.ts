@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { errorResponse } from "../../../../errors";
 import { getGameDetail } from "@/lib/games/query";
 import { gameIdForSlug, selectCandidate } from "@/lib/games/metadata-edit";
+import { refreshCoverArt } from "@/lib/artwork/refresh";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,6 @@ export async function POST(
     if (selected === null) {
         return errorResponse(404, "NOT_FOUND", "This game has no such candidate.");
     }
-    const game = getGameDetail(db, slug);
-    return NextResponse.json({ game });
+    const cover = await refreshCoverArt(db, gameId);
+    return NextResponse.json({ game: getGameDetail(db, slug), cover });
 }

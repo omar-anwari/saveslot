@@ -283,3 +283,37 @@ describe("archives", () => {
         ).toBe(true);
     });
 });
+describe("multi-disc sets", () => {
+    it("indexes three discs as one game", async () => {
+        await mkdir(path.join(root, "psx"), { recursive: true });
+        for (const disc of [1, 2, 3]) {
+            await writeFile(path.join(root, "psx", `POLICENAUTS_${disc}.cue`), `disc ${disc}`);
+        }
+        await runScan(handle.db, { libraryRoot: root, mode: "quick" });
+        const rows = handle.db
+            .select()
+            .from(games)
+            .where(eq(games.filenameTitle, "POLICENAUTS"))
+            .all();
+        expect(rows).toHaveLength(1);
+        const discs = handle.db
+            .select()
+            .from(gameFiles)
+            .where(eq(gameFiles.gameId, rows[0]!.id))
+            .all()
+            .sort((left, right) => (left.discNumber ?? 0) - (right.discNumber ?? 0));
+        expect(discs.map((file) => file.discNumber)).toEqual([1, 2, 3]);
+        expect(discs.filter((file) => file.fileRole === "primary")).toHaveLength(1);
+        expect(discs[0]?.fileRole).toBe("primary");
+    });
+    it("still gives sequels their own games", async () => {
+        await mkdir(path.join(root, "nes"), { recursive: true });
+        for (const number of [1, 2, 3]) {
+            await writeFile(path.join(root, "nes", `Mega Man ${number}.nes`), `rom ${number}`);
+        }
+        await runScan(handle.db, { libraryRoot: root, mode: "quick" });
+        const rows = handle.db.select().from(games).all()
+            .filter((row) => row.title.startsWith("Mega Man"));
+        expect(rows).toHaveLength(3);
+    });
+});

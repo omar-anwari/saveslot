@@ -16,12 +16,12 @@ interface Report {
 }
 
 const CHIP: Record<Status, string> = {
-    ok: "border-line text-muted",
-    warn: "border-warning text-warning",
-    fail: "border-warning text-warning",
+    ok: "border-success/20 bg-success/10 text-success",
+    warn: "border-warning/20 bg-warning/10 text-warning",
+    fail: "border-danger/20 bg-danger/10 text-danger",
 };
 
-const LABEL: Record<Status, string> = { ok: "ok", warn: "warn", fail: "fail" };
+const LABEL: Record<Status, string> = { ok: "Healthy", warn: "Review", fail: "Issue" };
 
 export function DiagnosticsPanel({
     appVersion,
@@ -40,6 +40,7 @@ export function DiagnosticsPanel({
         setError(null);
         try {
             const response = await fetch("/api/doctor", { cache: "no-store" });
+            if (!response.ok) throw new Error("Diagnostics request failed");
             const data = (await response.json()) as Report;
             setReport(data);
             setRefreshedAt(new Date().toLocaleTimeString());
@@ -50,23 +51,22 @@ export function DiagnosticsPanel({
         }
     }
     return (
-        <section className="mb-8 rounded-lg border border-line p-6">
+        <section className="rounded-lg border border-line bg-surface p-5 sm:p-7">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <h2 className="text-lg font-medium">Diagnostics</h2>
+                <h2 className="text-lg font-semibold">System health</h2>
                 <button
                     type="button"
                     onClick={() => void load()}
                     disabled={busy}
-                    className="rounded border border-line px-3 py-1.5 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
+                    className="button-secondary disabled:opacity-50"
                 >
-                    {busy ? "Checking…" : "Re-check"}
+                    {busy ? "Checking…" : "Run checks"}
                 </button>
             </div>
             <p className="mt-2 text-xs text-muted">
                 SaveSlot {appVersion}
                 {refreshedAt === null ? "" : ` · re-checked ${refreshedAt}`}
-                {" · same checks as "}
-                <span className="font-mono">pnpm run doctor</span>
+                {" · Library, storage, and player availability"}
             </p>
             {error !== null ? (
                 <p role="alert" className="mt-3 text-sm text-warning">
@@ -76,16 +76,16 @@ export function DiagnosticsPanel({
             {report.checks.length === 0 ? (
                 <p className="mt-4 text-sm text-muted">No checks ran.</p>
             ) : (
-                <ul className="mt-4 space-y-2 text-sm">
+                <ul className="mt-5 divide-y divide-line text-sm">
                     {report.checks.map((check) => (
-                        <li key={check.name} className="flex flex-wrap items-baseline gap-3">
+                        <li key={check.name} className="flex flex-wrap items-baseline gap-3 py-4">
                             <span
-                                className={`rounded border px-2 py-0.5 text-xs ${CHIP[check.status]}`}
+                                className={`w-16 shrink-0 rounded-full border px-2 py-0.5 text-center text-xs ${CHIP[check.status]}`}
                             >
                                 {LABEL[check.status]}
                             </span>
                             <span className="w-44 shrink-0">{check.name}</span>
-                            <span className="min-w-0 flex-1 text-muted">{check.detail}</span>
+                            <span className="min-w-0 basis-full break-words text-xs leading-5 text-muted lg:flex-1">{check.detail}</span>
                         </li>
                     ))}
                 </ul>

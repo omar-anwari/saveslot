@@ -9,6 +9,8 @@ import {
 } from "./lookup-cache.ts";
 import { MetadataProviderError } from "./provider-error.ts";
 import type { HashMatchInput, MetadataCandidate, MetadataProvider } from "./types.ts";
+import { deriveSortTitle } from "../scanning/filename.ts";
+
 
 export const AUTO_SELECT_MIN_SCORE = 0.98;
 export type MatchOutcome = "matched" | "partial" | "not_found" | "skipped" | "error";
@@ -250,7 +252,9 @@ export function applyToGame(
         set[field] = value;
     };
     assign("title", meta.title);
-    assign("sortTitle", meta.sortTitle);
+    if (locked.title !== true) {
+        assign("sortTitle", meta.sortTitle ?? deriveSortTitle(meta.title));
+    }
     assign("summary", meta.summary);
     assign("releaseYear", meta.releaseYear);
     assign("developer", meta.developer);

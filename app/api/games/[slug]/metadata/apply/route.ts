@@ -6,8 +6,7 @@ import { getGameDetail } from "@/lib/games/query";
 import { gameIdForSlug } from "@/lib/games/metadata-edit";
 import { enrichGame } from "@/lib/metadata/enrich-service";
 import { configuredProviders } from "@/lib/metadata/providers";
-import { cacheCoverArt } from "@/lib/artwork/service";
-import { env } from "@/lib/config/env";
+import { refreshCoverArt } from "@/lib/artwork/refresh";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,14 +41,6 @@ export async function POST(
     if (result.outcome === "error" || result.outcome === "not_found") {
         return errorResponse(502, "INTERNAL_ERROR", result.message ?? "The provider could not be read.");
     }
-    let cover = "skipped";
-    try {
-        cover = (await cacheCoverArt(db, gameId, {
-            dataRoot: env.appDataPath,
-            timeoutMs: env.METADATA_REQUEST_TIMEOUT_MS,
-        })).outcome;
-    } catch {
-        cover = "error";
-    }
+    const cover = await refreshCoverArt(db, gameId);
     return NextResponse.json({ game: getGameDetail(db, slug), cover });
 }

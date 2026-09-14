@@ -3,7 +3,8 @@ import { gameFiles, games, platforms } from "../../db/schema.ts";
 import { resolveWithinRoot } from "../filesystem/paths.ts";
 import { DEFAULT_ALGORITHMS, type HashAlgorithm } from "../hashing/file-hashes.ts";
 import { mapWithConcurrency } from "./concurrency.ts";
-import { parseFilename } from "./filename.ts";
+import { deriveSortTitle, parseFilename } from "./filename.ts";
+import { detectDiscGroups, type DiscMembership } from "./disc-groups.ts";
 import {
     EMPTY_COUNTERS,
     completeScanRun,
@@ -153,6 +154,7 @@ async function executeScan(
             });
         }
         counters.discovered = discovered.length;
+        const discGroups = detectDiscGroups(discovered);
         let indexed = 0;
         for (const batch of chunk(discovered, BATCH_SIZE)) {
             db.transaction((tx) => {
@@ -166,6 +168,7 @@ async function executeScan(
                         file,
                         platformId,
                         scanRunId,
+                        disc: discGroups.get(file.relativePath) ?? null,
                     });
                     if (outcome === "added") counters.added += 1;
                     if (outcome === "updated") counters.updated += 1;
@@ -196,11 +199,12 @@ interface UpsertInput {
     file: DiscoveredFile;
     platformId: number;
     scanRunId: string;
+    disc: DiscMembership | null;
 }
 
 function upsertFile(
     db: ScanDatabase,
-    { file, platformId, scanRunId }: UpsertInput,
+    { file, platformId, scanRunId, disc }: UpsertInput,
 ): "added" | "updated" | "unchanged" {
     const existing = db
         .select()
@@ -228,33 +232,45 @@ function upsertFile(
     }
 
     const parsed = parseFilename(file.fileName);
-    const slug = uniqueGameSlug(db, `${file.platformSlug}-${slugify(parsed.title)}`);
-    const inserted = db
-        .insert(games)
-        .values({
-            platformId,
-            slug,
-            title: parsed.title,
-            sortTitle: parsed.sortTitle,
-            filenameTitle: parsed.title,
-            releaseYear: parsed.year,
-            region: parsed.region,
-            revision: parsed.revision,
-            language: parsed.languages.join(",") || null,
-            metadataStatus: "unmatched",
-        })
-        .returning({ id: games.id })
-        .get();
+    const title = disc === null ? parsed.title : disc.title;
+
+    const existingGame =
+        disc === null
+            ? undefined
+            : db
+                  .select({ id: games.id })
+                  .from(games)
+                  .where(and(eq(games.platformId, platformId), eq(games.filenameTitle, title)))
+                  .get();
+
+    const gameId =
+        existingGame?.id ??
+        db
+            .insert(games)
+            .values({
+                platformId,
+                slug: uniqueGameSlug(db, `${file.platformSlug}-${slugify(title)}`),
+                title,
+                sortTitle: deriveSortTitle(title),
+                filenameTitle: title,
+                releaseYear: parsed.year,
+                region: parsed.region,
+                revision: parsed.revision,
+                language: parsed.languages.join(",") || null,
+                metadataStatus: "unmatched",
+            })
+            .returning({ id: games.id })
+            .get().id;
     db.insert(gameFiles)
         .values({
-            gameId: inserted.id,
+            gameId,
             relativePath: file.relativePath,
             fileName: file.fileName,
             extension: file.extension,
             sizeBytes: file.sizeBytes,
             modifiedAtFs: file.modifiedAtFs,
-            discNumber: parsed.discNumber,
-            fileRole: "primary",
+            discNumber: disc?.discNumber ?? parsed.discNumber,
+            fileRole: disc === null || disc.isPrimary ? "primary" : "disc",
             present: true,
             isFixture: file.isFixture,
             lastSeenScanId: scanRunId,

@@ -1,128 +1,27 @@
+import Link from "next/link";
 import { db } from "@/db/client";
-import { availablePlatforms, type AvailablePlatform } from "@/lib/platforms/available";
+import { SystemCard } from "@/components/home/system-card";
+import { BrowseIcon } from "@/components/library/browse-icon";
+import { availablePlatforms } from "@/lib/platforms/available";
 
 export const dynamic = "force-dynamic";
-
-export const metadata = {
-    title: "Platforms",
-};
-
-function ordinal(value: number): string {
-    const suffix =
-        value % 100 >= 11 && value % 100 <= 13
-            ? "th"
-            : ["th", "st", "nd", "rd"][value % 10] ?? "th";
-    return `${value}${suffix}`;
-}
-
-function PlatformCard({ platform }: { platform: AvailablePlatform }) {
-    return (
-        <li className="rounded-lg border border-neutral-200 bg-white/60 p-5 dark:border-neutral-800 dark:bg-neutral-900/40">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <h2 className="font-medium text-neutral-900 dark:text-neutral-100">
-                        {platform.name}
-                    </h2>
-                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-500">
-                        {platform.manufacturer}
-                        {platform.generation ? ` · ${ordinal(platform.generation)} generation` : ""}
-                        {platform.gameCount > 0
-                            ? ` · ${platform.gameCount} game${platform.gameCount === 1 ? "" : "s"}`
-                            : ""}
-                    </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                    {platform.experimental ? (
-                        <span className="rounded border border-amber-300 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-700/60 dark:text-amber-400">
-                            Experimental
-                        </span>
-                    ) : null}
-                    {platform.requiresBios ? (
-                        <span className="rounded border border-amber-300 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-700/60 dark:text-amber-400">
-                            Needs BIOS
-                        </span>
-                    ) : null}
-                    {!platform.enabled ? (
-                        <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-[11px] font-medium text-neutral-600 dark:border-neutral-700 dark:text-neutral-400">
-                            Disabled
-                        </span>
-                    ) : null}
-                </div>
-            </div>
-            <dl className="mt-4 space-y-2 text-xs">
-                <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-neutral-500 dark:text-neutral-500">Core</dt>
-                    <dd className="font-mono text-neutral-700 dark:text-neutral-300">
-                        {platform.emulatorCore ?? "—"}
-                    </dd>
-                </div>
-                <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-neutral-500 dark:text-neutral-500">Extensions</dt>
-                    <dd className="font-mono text-neutral-700 dark:text-neutral-300">
-                        {platform.extensionsJson.join(" ")}
-                    </dd>
-                </div>
-                <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-neutral-500 dark:text-neutral-500">Folders</dt>
-                    <dd className="font-mono text-neutral-700 dark:text-neutral-300">
-                        {platform.folderAliasesJson.join(" ")}
-                    </dd>
-                </div>
-            </dl>
-        </li>
-    );
-}
+export const metadata = { title: "Systems" };
 
 export default async function PlatformsPage() {
     const all = availablePlatforms(db);
     const supported = all.filter((platform) => platform.coreInstalled);
-    const inLibrary = supported.filter((platform) => platform.gameCount > 0);
+    const inLibrary = all.filter((platform) => platform.gameCount > 0);
     const empty = supported.filter((platform) => platform.gameCount === 0);
+    const totalGames = inLibrary.reduce((sum, platform) => sum + platform.gameCount, 0);
     return (
-        <main className="mx-auto w-full max-w-5xl px-6 py-12">
-            <header className="mb-10">
-                <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-                    Platforms
-                </h1>
-                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                    {all.length === 0
-                        ? "No platforms are registered yet."
-                        : `${inLibrary.length} in your library · ${supported.length} supported by the installed EmulatorJS build.`}
-                </p>
+        <div className="page-shell">
+            <header className="page-header">
+                <div><p className="eyebrow">Explore your collection</p><h1>Systems</h1><p className="mt-2 text-sm text-muted">A world of games, across generations.</p></div>
+                <Link href="/settings?tab=library" className="button-secondary">Add games<BrowseIcon name="arrow" width="15" height="15" /></Link>
             </header>
-            {all.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-neutral-300 p-10 text-center dark:border-neutral-700">
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        Run <code className="font-mono">pnpm db:seed</code> to register the
-                        supported systems.
-                    </p>
-                </div>
-            ) : inLibrary.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-neutral-300 p-10 text-center dark:border-neutral-700">
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        No platform has any games yet. Put files into a folder named after one
-                        of the systems below, then run a scan.
-                    </p>
-                </div>
-            ) : (
-                <ul className="grid gap-4 sm:grid-cols-2">
-                    {inLibrary.map((platform) => (
-                        <PlatformCard key={platform.slug} platform={platform} />
-                    ))}
-                </ul>
-            )}
-            {empty.length === 0 ? null : (
-                <details className="mt-10">
-                    <summary className="cursor-pointer text-sm text-neutral-600 dark:text-neutral-400">
-                        {empty.length} more supported systems with no games yet
-                    </summary>
-                    <ul className="mt-4 grid gap-4 sm:grid-cols-2">
-                        {empty.map((platform) => (
-                            <PlatformCard key={platform.slug} platform={platform} />
-                        ))}
-                    </ul>
-                </details>
-            )}
-        </main>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-medium">Your systems <span className="ml-2 text-xs font-normal text-subtle">{inLibrary.length}</span></h2><p className="text-xs text-subtle">{totalGames.toLocaleString()} games in your library</p></div>
+            {inLibrary.length === 0 ? <div className="empty-state"><span className="mb-5 flex h-14 w-14 items-center justify-center rounded-lg border border-line bg-surface text-accent-hover"><BrowseIcon name="grid" width="25" height="25" /></span><h2 className="text-lg font-medium">Make room for your classics</h2><p className="mt-2 max-w-md text-sm leading-relaxed text-muted">Add a game folder and scan your library. Your systems will find their home here.</p><Link href="/settings?tab=library" className="button-primary mt-6">Set up your library<BrowseIcon name="arrow" width="15" height="15" /></Link></div> : <ul className="system-grid">{inLibrary.sort((left, right) => right.gameCount - left.gameCount).map((platform) => <SystemCard key={platform.slug} slug={platform.slug} name={platform.name} gameCount={platform.gameCount} />)}</ul>}
+            {empty.length > 0 ? <details className="group mt-10 rounded-lg border border-line bg-elevated p-5 sm:p-6"><summary className="flex cursor-pointer list-none items-center justify-between gap-4"><span><span className="block text-sm font-medium">More to explore</span><span className="mt-1 block text-xs text-subtle">{empty.length} supported systems, ready for your games</span></span><span className="text-muted transition-transform group-open:rotate-90"><BrowseIcon name="chevron" width="17" height="17" /></span></summary><ul className="system-grid mt-6">{empty.map((platform) => <SystemCard key={platform.slug} slug={platform.slug} name={platform.name} gameCount={platform.gameCount} />)}</ul></details> : null}
+        </div>
     );
 }

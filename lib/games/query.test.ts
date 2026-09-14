@@ -103,6 +103,15 @@ describe("queryGames", () => {
     it("filters by release year", () => {
         expect(queryGames(handle.db, { year: 1995 }).total).toBe(1);
     });
+    it("matches exact genres within metadata arrays and combines region filters", () => {
+        handle.db.update(games).set({ genresJson: ["Action", "Adventure"], region: "USA" }).where(eq(games.slug, "a")).run();
+        handle.db.update(games).set({ genresJson: ["Action RPG"], region: "USA" }).where(eq(games.slug, "b")).run();
+        handle.db.update(games).set({ genresJson: ["Action"], region: "Japan" }).where(eq(games.slug, "c")).run();
+        expect(queryGames(handle.db, { genre: "Action" }).games.map((game) => game.slug)).toEqual(["c", "a"]);
+        expect(queryGames(handle.db, { genre: "Action", region: "USA" }).games.map((game) => game.slug)).toEqual(["a"]);
+        expect(queryGames(handle.db, { genre: "Puzzle" }).total).toBe(0);
+        expect(queryGames(handle.db, { region: "Europe" }).total).toBe(0);
+    });
     it("reports presence from the underlying files", () => {
         const missing = queryGames(handle.db, { present: false });
         expect(missing.games.map((g) => g.slug)).toEqual(["e"]);

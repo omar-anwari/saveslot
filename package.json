@@ -22,6 +22,7 @@
     "metadata": "node --env-file-if-exists=.env.local --conditions=react-server scripts/metadata.ts",
     "fixtures": "node --env-file-if-exists=.env.local --conditions=react-server scripts/create-dev-fixtures.ts",
     "doctor": "node --env-file-if-exists=.env.local --conditions=react-server scripts/doctor.ts",
+    "cleanup": "node --env-file-if-exists=.env.local --conditions=react-server scripts/cleanup.ts",
     "setup:local": "node --env-file-if-exists=.env.local --conditions=react-server scripts/setup-local.ts",
     "emulatorjs:sync": "node --env-file-if-exists=.env.local --conditions=react-server scripts/emulatorjs-sync.ts",
     "emulatorjs:check": "node --env-file-if-exists=.env.local --conditions=react-server scripts/emulatorjs-sync.ts --check",

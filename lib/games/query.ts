@@ -28,6 +28,8 @@ export interface GameQuery {
     q?: string;
     platform?: string;
     year?: number;
+    genre?: string;
+    region?: string;
     favourite?: boolean;
     status?: PlayStatusValue;
     present?: boolean;
@@ -40,6 +42,7 @@ export interface GameQuery {
 export interface GameListItem {
     slug: string;
     title: string;
+    sortTitle: string;
     platformSlug: string;
     platformName: string;
     releaseYear: number | null;
@@ -48,6 +51,7 @@ export interface GameListItem {
     playStatus: string;
     metadataStatus: string;
     coverThumbPath: string | null;
+    coverPath: string | null;
     lastPlayedAt: Date | null;
     totalPlaySeconds: number;
     present: boolean;
@@ -64,6 +68,7 @@ export interface GameQueryResult {
 const GAME_LIST_COLUMNS = {
     slug: games.slug,
     title: games.title,
+    sortTitle: games.sortTitle,
     platformSlug: platforms.slug,
     platformName: platforms.name,
     releaseYear: games.releaseYear,
@@ -72,6 +77,7 @@ const GAME_LIST_COLUMNS = {
     playStatus: games.playStatus,
     metadataStatus: games.metadataStatus,
     coverThumbPath: games.coverThumbPath,
+    coverPath: games.coverPath,
     lastPlayedAt: games.lastPlayedAt,
     totalPlaySeconds: games.totalPlaySeconds,
     present: sql<boolean>`exists (
@@ -98,6 +104,10 @@ function buildConditions(query: GameQuery): SQL[] {
     }
     if (query.platform) conditions.push(eq(platforms.slug, query.platform));
     if (query.year !== undefined) conditions.push(eq(games.releaseYear, query.year));
+    if (query.genre) {
+        conditions.push(sql`exists (select 1 from json_each(${games.genresJson}) where value = ${query.genre})`);
+    }
+    if (query.region) conditions.push(eq(games.region, query.region));
     if (query.favourite !== undefined) {
         conditions.push(eq(games.favourite, query.favourite));
     }

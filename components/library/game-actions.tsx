@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { DetailIcon } from "@/components/library/detail-icon";
 
 const PLAY_STATUSES = [
     "unplayed",
@@ -26,16 +27,19 @@ function isPlayStatus(value: string): value is PlayStatus {
 export interface GameActionsProps {
     slug: string;
     favourite: boolean;
+    hidden: boolean;
     playStatus: string;
 }
 
 export function GameActions({
     slug,
     favourite: initialFavourite,
+    hidden: initialHidden,
     playStatus: initialStatus,
 }: GameActionsProps) {
     const router = useRouter();
     const [favourite, setFavourite] = useState(initialFavourite);
+    const [hidden, setHidden] = useState(initialHidden);
     const [playStatus, setPlayStatus] = useState<PlayStatus>(
         isPlayStatus(initialStatus) ? initialStatus : "unplayed",
     );
@@ -43,7 +47,7 @@ export function GameActions({
     const [saving, setSaving] = useState(false);
     const [, startTransition] = useTransition();
     async function patch(
-        body: { favourite: boolean } | { playStatus: PlayStatus },
+        body: { favourite: boolean } | { hidden: boolean } | { playStatus: PlayStatus },
         revert: () => void,
     ) {
         setSaving(true);
@@ -76,6 +80,11 @@ export function GameActions({
         setFavourite(!previous);
         void patch({ favourite: !previous }, () => setFavourite(previous));
     }
+    function toggleHidden() {
+        const previous = hidden;
+        setHidden(!previous);
+        void patch({ hidden: !previous }, () => setHidden(previous));
+    }
     function changeStatus(next: string) {
         if (!isPlayStatus(next)) return;
         const previous = playStatus;
@@ -83,39 +92,51 @@ export function GameActions({
         void patch({ playStatus: next }, () => setPlayStatus(previous));
     }
     return (
-        <div className="mt-5">
-            <div className="flex flex-wrap items-end gap-3">
+        <div className="relative">
+            <div className="flex items-center gap-2.5">
                 <button
                     type="button"
                     onClick={toggleFavourite}
                     disabled={saving}
                     aria-pressed={favourite}
                     className={
-                        favourite
-                            ? "rounded bg-accent px-4 py-2 text-sm font-medium text-accent-contrast disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                            : "rounded border border-line px-4 py-2 text-sm font-medium disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        `flex h-11 items-center gap-2 rounded-sm border px-3.5 text-sm font-medium transition-colors disabled:opacity-50 ${favourite
+                            ? "border-accent/35 bg-accent-soft text-[#b6a6ff]"
+                            : "border-line-strong bg-surface/75 text-muted hover:bg-surface-hover hover:text-ink"}`
                     }
                 >
-                    {favourite ? "★ Favourited" : "☆ Favourite"}
+                    <DetailIcon name="heart" fill={favourite ? "currentColor" : "none"} width={17} height={17} />
+                    {favourite ? "Favorited" : "Favorite"}
                 </button>
-                <div className="flex flex-col gap-1.5">
-                    <label htmlFor="play-status" className="text-xs text-muted">
-                        Status
-                    </label>
-                    <select
-                        id="play-status"
-                        value={playStatus}
-                        disabled={saving}
-                        onChange={(event) => changeStatus(event.target.value)}
-                        className="min-w-40 rounded border border-line bg-surface px-3 py-2 text-sm disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
-                    >
-                        {PLAY_STATUSES.map((value) => (
-                            <option key={value} value={value}>
-                                {STATUS_LABELS[value]}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                <details className="group relative">
+                    <summary aria-label="More game options" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-sm border border-line-strong bg-surface/75 text-muted transition-colors hover:bg-surface-hover hover:text-ink [&::-webkit-details-marker]:hidden">
+                        <DetailIcon name="more" strokeWidth={3.5} />
+                    </summary>
+                    <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-md border border-line-strong bg-elevated p-3 shadow-xl">
+                        <label htmlFor="play-status" className="mb-2 block text-xs text-muted">Play status</label>
+                        <select
+                            id="play-status"
+                            value={playStatus}
+                            disabled={saving}
+                            onChange={(event) => changeStatus(event.target.value)}
+                            className="h-10 w-full rounded-sm border border-line bg-surface px-2.5 text-sm disabled:opacity-50"
+                        >
+                            {PLAY_STATUSES.map((value) => (
+                                <option key={value} value={value}>{STATUS_LABELS[value]}</option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={toggleHidden}
+                            disabled={saving}
+                            aria-pressed={hidden}
+                            title="Hidden games keep their saves and metadata but are left out of the library listing"
+                            className="mt-3 w-full rounded-sm border border-line px-3 py-2.5 text-left text-sm text-muted hover:bg-surface-hover disabled:opacity-50"
+                        >
+                            {hidden ? "Show in library" : "Hide from library"}
+                        </button>
+                    </div>
+                </details>
             </div>
             {error ? (
                 <p role="alert" className="mt-3 text-sm text-warning">

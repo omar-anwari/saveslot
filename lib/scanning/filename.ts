@@ -16,6 +16,9 @@ const ARTICLES = [
 const ARTICLE_SUFFIX = new RegExp(`^(?<name>.+),\\s*(?<article>${ARTICLES.join("|")})$`, "i");
 const ARTICLE_PREFIX = new RegExp(`^(?:${ARTICLES.join("|")})\\s+`, "i");
 
+export function deriveSortTitle(title: string): string {
+  return title.replace(ARTICLE_PREFIX, "").toLowerCase().trim();
+}
 const GROUP_PATTERN = /\s*(?:\((?<paren>[^()]*)\)|\[(?<bracket>[^\][]*)\])/g;
 
 const REVISION_PATTERN = /^Rev\s+(?<value>\S+)$/i;
@@ -136,7 +139,7 @@ export function parseFilename(fileName: string): ParsedFilename {
     title = `${articleMatch.groups.article} ${articleMatch.groups.name}`;
   }
 
-  const sortTitle = title.replace(ARTICLE_PREFIX, "").toLowerCase().trim();
+  const sortTitle = deriveSortTitle(title);
 
   return {
     extension,

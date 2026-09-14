@@ -47,4 +47,8 @@ describe("resolvePlatformSlug", () => {
         expect(igdbPlatformIdsFor("nes")).toEqual([18]);
         expect(igdbPlatformIdsFor("nope")).toEqual([]);
     });
+    it("treats the Japanese variant as the same platform", () => {
+        expect(resolvePlatformSlug(58, "Super Famicom")).toBe("snes");
+        expect(igdbPlatformIdsFor("snes")).toEqual([19, 58]);
+    });
 });

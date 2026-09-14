@@ -1,152 +1,67 @@
 import Link from "next/link";
-import { GameCard } from "@/components/library/game-card";
+import type { ReactNode } from "react";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { formatPlaytime, formatRelative } from "@/lib/format";
-import { continuePlaying, favouriteGames, platformSummaries, queryGames, randomPick, recentlyAdded, type GameListItem } from "@/lib/games/query";
+import { games, saves, saveStates } from "@/db/schema";
+import { ContinueCard } from "@/components/home/continue-card";
+import { ResumeHero } from "@/components/home/resume-hero";
+import { SystemCard } from "@/components/home/system-card";
+import { GameCard } from "@/components/library/game-card";
+import { ArrowRightIcon, LibraryIcon } from "@/components/shell/icons";
+import { availablePlatforms } from "@/lib/platforms/available";
+import { continuePlaying, recentlyAdded, queryGames } from "@/lib/games/query";
 
 export const dynamic = "force-dynamic";
 
-const ROW_SIZE = 6;
-
-function Section({
-    title,
-    href,
-    children,
-}: {
-    title: string;
-    href?: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <section className="mb-12">
-            <div className="mb-4 flex items-baseline justify-between gap-4">
-                <h2 className="text-lg font-medium tracking-tight">{title}</h2>
-                {href ? (
-                    <Link
-                        href={href}
-                        className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-accent"
-                    >
-                        View all
-                    </Link>
-                ) : null}
-            </div>
-            {children}
-        </section>
-    );
-}
-
-function Grid({ children }: { children: React.ReactNode }) {
-    return (
-        <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
-            {children}
-        </ul>
-    );
-}
-
-function card(game: GameListItem, meta?: string) {
-    return (
-        <GameCard
-            key={game.slug}
-            slug={game.slug}
-            title={game.title}
-            platformSlug={game.platformSlug}
-            platformName={game.platformName}
-            releaseYear={game.releaseYear}
-            present={game.present}
-            coverThumbPath={game.coverThumbPath}
-            meta={meta}
-        />
-    );
+function Section({ title, href, children }: { title: string; href: string; children: ReactNode }) {
+    return <section className="mt-8">
+        <div className="section-heading">
+            <h2>{title}</h2>
+            <Link href={href} className="section-link">View all <ArrowRightIcon /></Link>
+        </div>
+        {children}
+    </section>;
 }
 
 export default async function HomePage() {
+    const resuming = continuePlaying(db, 4);
+    const recent = recentlyAdded(db, 9);
+    const systems = availablePlatforms(db).filter((platform) => platform.gameCount > 0)
+        .sort((left, right) => right.gameCount - left.gameCount);
+    const featured = resuming[0] ?? recent[0];
     const total = queryGames(db, { pageSize: 1 }).total;
-    if (total === 0) {
-        return (
-            <main className="mx-auto w-full max-w-6xl px-6 py-12">
-                <h1 className="text-3xl font-semibold tracking-tight">Your library</h1>
-                <div className="mt-8 rounded-lg border border-dashed border-line p-12 text-center">
-                    <p className="text-sm">No games yet.</p>
-                    <p className="mt-2 text-sm text-muted">
-                        Add ROM files under your library&rsquo;s platform folders, then run
-                        a scan.
-                    </p>
-                    <Link
-                        href="/settings"
-                        className="mt-4 inline-block text-sm text-accent underline-offset-4 hover:underline"
-                    >
-                        Go to Settings
-                    </Link>
-                </div>
-            </main>
-        );
+    const featuredSlugs = [...new Set([...resuming, ...(featured ? [featured] : [])].map((game) => game.slug))];
+    const screenshots = new Map<string, string>();
+    if (featuredSlugs.length) {
+        const rows = db.select({ slug: games.slug, id: saveStates.id, screenshot: saveStates.screenshotRelativePath })
+            .from(saveStates).innerJoin(games, eq(saveStates.gameId, games.id))
+            .where(inArray(games.slug, featuredSlugs)).orderBy(desc(saveStates.createdAt)).all();
+        for (const row of rows) {
+            if (row.screenshot && !screenshots.has(row.slug)) screenshots.set(row.slug, `/api/states/${row.id}/screenshot`);
+        }
     }
+    const hasSave = featured ? db.select({ current: saves.isCurrent }).from(saves)
+        .innerJoin(games, eq(saves.gameId, games.id)).where(eq(games.slug, featured.slug)).all().some((save) => save.current) : false;
 
-    const resume = continuePlaying(db, ROW_SIZE);
-    const recent = recentlyAdded(db, ROW_SIZE);
-    const favourites = favouriteGames(db, ROW_SIZE);
-    const pick = randomPick(db);
-    const platforms = platformSummaries(db).filter((row) => row.gameCount > 0);
-    return (
-        <main className="mx-auto w-full max-w-6xl px-6 py-12">
-            <header className="mb-10">
-                <h1 className="text-3xl font-semibold tracking-tight">Your library</h1>
-                <p className="mt-2 text-sm text-muted">
-                    {total} game{total === 1 ? "" : "s"} across {platforms.length} system
-                    {platforms.length === 1 ? "" : "s"}.
-                </p>
-            </header>
-            {resume.length > 0 ? (
-                <Section title="Continue playing" href="/library?sort=last-played">
-                    <Grid>
-                        {resume.map((game) =>
-                            card(
-                                game,
-                                [
-                                    formatPlaytime(game.totalPlaySeconds),
-                                    game.lastPlayedAt ? formatRelative(game.lastPlayedAt) : null,
-                                ]
-                                    .filter(Boolean)
-                                    .join(" · "),
-                            ),
-                        )}
-                    </Grid>
-                </Section>
-            ) : null}
-            {favourites.length > 0 ? (
-                <Section title="Favourites" href="/library">
-                    <Grid>{favourites.map((game) => card(game))}</Grid>
-                </Section>
-            ) : null}
-            <Section title="Recently added" href="/library?sort=recently-added">
-                <Grid>{recent.map((game) => card(game))}</Grid>
-            </Section>
-            {pick ? (
-                <Section title="Random pick">
-                    <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
-                        {card(pick)}
-                    </ul>
-                </Section>
-            ) : null}
-            {platforms.length > 0 ? (
-                <Section title="Systems" href="/platforms">
-                    <ul className="flex flex-wrap gap-2">
-                        {platforms.map((platform) => (
-                            <li key={platform.slug}>
-                                <Link
-                                    href={`/library?platform=${platform.slug}`}
-                                    className="inline-block rounded-full border border-line px-3 py-1.5 text-sm text-muted transition-colors hover:border-accent hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
-                                >
-                                    {platform.name}
-                                    <span className="ml-2 text-xs text-muted">
-                                        {platform.gameCount}
-                                    </span>
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </Section>
-            ) : null}
-        </main>
-    );
+    return <div className="page-shell">
+        <header className="page-header">
+            <div><p className="eyebrow">Your next adventure awaits</p><h1>Welcome home</h1></div>
+            <Link href="/library" className="section-link"><LibraryIcon />{total.toLocaleString()} games<span className="mx-1 text-subtle">/</span>{systems.length} systems<ArrowRightIcon /></Link>
+        </header>
+        {featured ? <ResumeHero game={featured} hasSave={hasSave} screenshotUrl={screenshots.get(featured.slug)} /> : <div className="empty-state">
+            <span className="mb-5 rounded-lg bg-accent-soft p-4 text-[#b4a4ff]"><LibraryIcon /></span>
+            <h2 className="text-xl font-semibold">Every adventure starts somewhere</h2>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">Add your games to your library folder, then scan your library to bring them here.</p>
+            <Link href="/settings?tab=library" className="button-primary mt-6">Set up your library<ArrowRightIcon /></Link>
+        </div>}
+        {resuming.length ? <Section title="Continue playing" href="/library?sort=last-played">
+            <ul className="continue-grid">{resuming.map((game) => <ContinueCard key={game.slug} game={game} screenshotUrl={screenshots.get(game.slug)} />)}</ul>
+        </Section> : null}
+        {recent.length ? <Section title="Recently added" href="/library?sort=recently-added">
+            <ul className="recent-grid">{recent.map((game) => <GameCard key={game.slug} {...game} />)}</ul>
+        </Section> : null}
+        {systems.length ? <Section title="Your systems" href="/platforms">
+            <ul className="system-grid">{systems.slice(0, 6).map((platform) => <SystemCard key={platform.slug} {...platform} />)}</ul>
+        </Section> : null}
+    </div>;
 }

@@ -3,6 +3,7 @@ import { games, metadataCandidates } from "../../db/schema.ts";
 import { applyToGame } from "../metadata/match-service.ts";
 import type { MetadataDatabase } from "../metadata/lookup-cache.ts";
 import type { MetadataCandidate, NormalizedGameMetadata } from "../metadata/types.ts";
+import { deriveSortTitle } from "../scanning/filename.ts";
 
 export function gameIdForSlug(db: MetadataDatabase, slug: string): number | null {
     const row = db.select({ id: games.id }).from(games).where(eq(games.slug, slug)).get();
@@ -70,6 +71,9 @@ export function updateManualMetadata(
         changed.push(field);
     }
     if (changed.length === 0) return { changed: [], locked: Object.keys(locks) as EditableField[] };
+    if (edits.title !== undefined && edits.sortTitle === undefined && locks.sortTitle !== true) {
+        set.sortTitle = deriveSortTitle(edits.title);
+    }
     set.manualFieldsJson = locks;
     set.metadataStatus = "manual";
     db.update(games).set(set).where(eq(games.id, gameId)).run();
@@ -115,9 +119,12 @@ export function revertFields(
         delete locks[field];
         changed.push(field);
         switch (field) {
-            case "title":
-                set.title = provider?.title ?? game.filenameTitle;
+            case "title": {
+                const restored = provider?.title ?? game.filenameTitle;
+                set.title = restored;
+                if (locks.sortTitle !== true) set.sortTitle = deriveSortTitle(restored);
                 break;
+            }
             case "genres":
                 set.genresJson = provider === null ? [] : [...provider.genres];
                 break;
