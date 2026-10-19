@@ -28,7 +28,8 @@
     "emulatorjs:check": "node --env-file-if-exists=.env.local --conditions=react-server scripts/emulatorjs-sync.ts --check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "test:e2e": "playwright test",
+    "test:all": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm build"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
@@ -41,6 +42,7 @@
     "zod": "^4.5.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",

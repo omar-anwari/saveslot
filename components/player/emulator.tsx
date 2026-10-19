@@ -614,6 +614,9 @@ export function Emulator({
                 case "unchanged":
                     record("Battery save", "ok", "Unchanged since the last sync.");
                     break;
+                case "idle":
+                    record("Battery save", "skipped", saveResult.message);
+                    break;
                 case "conflict":
                     record(
                         "Battery save",
@@ -664,6 +667,12 @@ export function Emulator({
                 record("Autosave state", "failed", errorMessage(error));
             }
         }
+        if (steps.some((step) => step.status === "failed")) {
+            record("Play session", "skipped", "Kept open so playtime keeps counting.");
+            await adapter.resume();
+            setQuitting(false);
+            return;
+        }
         const session = sessionId.current;
         if (session === null) {
             record("Play session", "skipped", "None was open.");
@@ -674,12 +683,8 @@ export function Emulator({
             })
                 .then((response) => response.ok)
                 .catch(() => false);
-            record("Play session", ended ? "ok" : "failed", ended ? "Ended." : "Could not be closed.");
-        }
-        if (steps.some((step) => step.status === "failed")) {
-            await adapter.resume();
-            setQuitting(false);
-            return;
+            if (!ended) sessionId.current = session;
+            record("Play session", ended ? "ok" : "skipped", ended ? "Ended." : "Will close when the page unloads.");
         }
         await refreshStates();
         window.location.assign(`/games/${gameSlug}`);

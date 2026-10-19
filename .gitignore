@@ -10,6 +10,11 @@ node_modules
 /dev-data/*
 /dev-library/*
 /public/emulatorjs/
+/certificates/
+/.next-e2e/
+/.e2e/
+/test-results/
+/playwright-report/
 
 *.tsbuildinfo
 
