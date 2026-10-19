@@ -23,7 +23,7 @@ export function ResumeHero({ game, hasSave = false, screenshotUrl = null }: {
                 <div className="max-w-xl">
                     <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b4a4ff]">
                         <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                        {game.lastPlayedAt ? "Jump back in" : "From your library"}
+                        {game.lastPlayedAt ? "Continue playing" : "From your library"}
                     </p>
                     <h2 className="max-w-[17ch] text-2xl font-semibold leading-[1.12] tracking-tight sm:text-3xl lg:text-4xl">{game.title}</h2>
                     <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">

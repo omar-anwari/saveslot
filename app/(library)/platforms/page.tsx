@@ -16,7 +16,7 @@ export default async function PlatformsPage() {
     return (
         <div className="page-shell">
             <header className="page-header">
-                <div><p className="eyebrow">Explore your collection</p><h1>Systems</h1><p className="mt-2 text-sm text-muted">A world of games, across generations.</p></div>
+                <div><h1>Systems</h1><p className="mt-2 text-sm text-muted">Every system in your library.</p></div>
                 <Link href="/settings?tab=library" className="button-secondary">Add games<BrowseIcon name="arrow" width="15" height="15" /></Link>
             </header>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-medium">Your systems <span className="ml-2 text-xs font-normal text-subtle">{inLibrary.length}</span></h2><p className="text-xs text-subtle">{totalGames.toLocaleString()} games in your library</p></div>

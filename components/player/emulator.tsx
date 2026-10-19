@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmulatorAdapter } from "@/lib/emulatorjs/adapter";
+import { sha256HexSync } from "@/lib/saves/sha256";
 
 declare global {
     interface Window {
@@ -14,6 +15,12 @@ declare global {
         EJS_alignStartButton?: string;
         EJS_threads?: boolean;
         EJS_defaultOptions?: Record<string, string>;
+        EJS_ready?: () => void;
+        EJS_onGameStart?: () => void;
+        EJS_Buttons?: Record<string, boolean>;
+        EJS_hideSettings?: string[];
+        EJS_onSaveState?: () => void;
+        EJS_onLoadState?: () => void;
     }
 }
 
@@ -95,19 +102,28 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 const CLIENT_ID_KEY = "saveslot.clientId";
+function randomId(): string {
+    if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+    const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 function clientId(): string {
     try {
         const existing = localStorage.getItem(CLIENT_ID_KEY);
         if (existing) return existing;
-        const created = crypto.randomUUID();
+        const created = randomId();
         localStorage.setItem(CLIENT_ID_KEY, created);
         return created;
     } catch {
-        return crypto.randomUUID();
+        return randomId();
     }
 }
 
 async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
+    if (globalThis.crypto?.subtle === undefined) return sha256HexSync(new Uint8Array(buffer));
     const digest = await crypto.subtle.digest("SHA-256", buffer);
     return [...new Uint8Array(digest)]
         .map((byte) => byte.toString(16).padStart(2, "0"))
@@ -146,7 +162,7 @@ export function Emulator({
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const [states, setStates] = useState<StateItem[]>([]);
     const [statesOpen, setStatesOpen] = useState(false);
-    const [statesSupported, setStatesSupported] = useState(false);
+    const playerActions = useRef<{ saveState: () => void; openStates: () => void } | null>(null);
     const [stateBusy, setStateBusy] = useState(false);
     const pushSave = useCallback(
         async (reason: "interval" | "quit"): Promise<SyncState> => {
@@ -300,6 +316,15 @@ export function Emulator({
         }
     }
     useEffect(() => {
+        playerActions.current = {
+            saveState: () => void saveState(),
+            openStates: () => {
+                void refreshStates();
+                setStatesOpen(true);
+            },
+        };
+    });
+    useEffect(() => {
         if (started.current) return;
         started.current = true;
         window.EJS_player = "#emulator";
@@ -311,6 +336,30 @@ export function Emulator({
         window.EJS_startOnLoaded = true;
         window.EJS_alignStartButton = "center";
         window.EJS_defaultOptions = { "save-state-location": "browser" };
+        window.EJS_Buttons = {
+            saveSavFiles: false,
+            loadSavFiles: false,
+            quickSave: false,
+            quickLoad: false,
+            exitEmulation: false,
+            netplay: false,
+            cacheManager: false,
+        };
+        window.EJS_hideSettings = ["save-state-location", "save-state-slot"];
+        window.EJS_onSaveState = () => playerActions.current?.saveState();
+        window.EJS_onLoadState = () => playerActions.current?.openStates();
+        window.EJS_ready = () => {
+            if (window.matchMedia("(pointer: coarse)").matches && window.EJS_emulator) window.EJS_emulator.touch = true;
+        };
+        window.EJS_onGameStart = () => {
+            window.dispatchEvent(new Event("resize"));
+            if (!window.matchMedia("(pointer: coarse)").matches) return;
+            window.setTimeout(() => {
+                const emulator = window.EJS_emulator;
+                if (emulator?.getSettingValue?.("virtual-gamepad") === "disabled") return;
+                emulator?.toggleVirtualGamepad?.(true);
+            }, 300);
+        };
         if (threads === "on") window.EJS_threads = true;
         if (threads === "off") window.EJS_threads = false;
         const script = document.createElement("script");
@@ -326,12 +375,6 @@ export function Emulator({
             adapterRef.current = adapter;
             try {
                 await adapter.waitUntilReady();
-                window.dispatchEvent(new Event("resize"));
-                try {
-                    setStatesSupported(adapter.supportsStates());
-                } catch {
-                    setStatesSupported(false);
-                }
                 setIsolated(globalThis.crossOriginIsolated);
                 void refreshStates();
                 if (!sessionStarted.current) {
@@ -444,11 +487,6 @@ export function Emulator({
                     return;
                 }
             }
-            try {
-                setStatesSupported(adapter.supportsStates());
-            } catch {
-                setStatesSupported(false);
-            }
             void refreshStates();
             if (hasBatterySave) {
                 timer = setInterval(() => {
@@ -493,17 +531,26 @@ export function Emulator({
         const schedule = () => {
             if (hideTimer.current !== null) clearTimeout(hideTimer.current);
             hideTimer.current = setTimeout(() => {
-                if (!overlayRef.current?.contains(document.activeElement)) setOverlayVisible(false);
+                const focused = document.activeElement;
+                const inside = focused instanceof Element && overlayRef.current?.contains(focused) === true;
+                if (inside && focused.matches(":focus-visible")) return;
+                setOverlayVisible(false);
+                if (inside) document.getElementById("emulator")?.focus();
             }, OVERLAY_IDLE_MS);
         };
-        const show = () => {
+        const show = (event?: Event) => {
+            if (event?.target instanceof Element && event.target.closest(".ejs_virtualGamepad_parent")) return;
             setOverlayVisible(true);
             schedule();
         };
         const onKey = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 event.preventDefault();
-                show();
+                if (overlayRef.current?.contains(document.activeElement)) {
+                    if (hideTimer.current !== null) clearTimeout(hideTimer.current);
+                    setOverlayVisible(false);
+                    document.getElementById("emulator")?.focus();
+                } else show();
                 return;
             }
             if (event.key === "Tab") show();
@@ -528,21 +575,6 @@ export function Emulator({
             window.removeEventListener("keydown", onKey);
         };
     }, []);
-    async function toggleFullscreen() {
-        try {
-            if (document.fullscreenElement === null) await document.documentElement.requestFullscreen();
-            else await document.exitFullscreen();
-        } catch {
-            setState({ kind: "failed", message: "Fullscreen is not available in this browser." });
-        }
-    }
-    async function resumeGame() {
-        if (quitting || stateBusy) return;
-        if (adapterRef.current?.ready) await adapterRef.current.resume();
-        setStatesOpen(false);
-        setOverlayVisible(false);
-        document.getElementById("emulator")?.focus();
-    }
     async function saveAndQuit() {
         if (quitting || stateBusy) return;
         setQuitting(true);
@@ -654,19 +686,22 @@ export function Emulator({
     }
     const chromeVisible = overlayVisible || quitting || statesOpen || state.kind === "quit";
     const controlsBusy = stateBusy || quitting || state.kind === "booting" || state.kind === "restoring";
-    const controlClass = "flex min-h-14 min-w-24 flex-1 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white/85 transition-colors hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none";
     return (
         <>
             <div id="emulator" tabIndex={-1} className="h-full w-full outline-none" />
-            <div inert={!chromeVisible}
+            <div ref={overlayRef} inert={!chromeVisible}
                 className={`pointer-events-none absolute inset-x-0 top-0 z-[10000] flex items-start justify-between gap-4 bg-gradient-to-b from-black/70 to-transparent p-4 pb-12 transition-opacity duration-[180ms] sm:p-6 sm:pb-12 ${chromeVisible ? "opacity-100" : "opacity-0"}`}>
                 <div className="min-w-0 rounded-md border border-white/10 bg-black/50 px-4 py-3 backdrop-blur-xl">
                     <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/45">{platformName}</p>
                     <p className="mt-1 truncate text-sm font-medium text-white/95">{gameName}</p>
                     {isolated === false ? <p className="mt-1 text-[10px] text-warning">Compatibility mode · single-threaded play</p> : null}
                 </div>
-                <div className="pointer-events-auto flex shrink-0 items-center gap-3 rounded-md border border-white/10 bg-black/50 p-2 pl-4 backdrop-blur-xl">
-                    <span className="text-xs tabular-nums text-white/60">{clock(elapsed)}</span>
+                <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-md border border-white/10 bg-black/50 p-2 pl-4 backdrop-blur-xl pointer-coarse:mr-10">
+                    <span className="mr-2 text-xs tabular-nums text-white/60">{clock(elapsed)}</span>
+                    <button type="button" onClick={() => void saveAndQuit()} disabled={controlsBusy}
+                        className="flex min-h-9 items-center gap-2 rounded-sm bg-accent px-3 text-xs font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-40">
+                        <PlayerIcon name="save" />{quitting ? "Saving…" : "Save & Quit"}
+                    </button>
                     <a href={`/games/${gameSlug}`} title="Exit without saving" className="flex min-h-9 items-center gap-2 rounded-sm px-3 text-xs text-white/75 hover:bg-white/10 hover:text-white"><PlayerIcon name="exit" />Exit</a>
                 </div>
             </div>
@@ -684,12 +719,14 @@ export function Emulator({
             ) : (
                 <div aria-live="polite" className="sr-only"><StatusLine state={state} /></div>
             )}
-            <div ref={overlayRef} inert={!chromeVisible}
-                className={`absolute inset-x-0 bottom-12 z-[10001] flex flex-col items-center px-3 pb-3 transition-opacity duration-[180ms] sm:bottom-14 sm:px-6 ${chromeVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-                {statesOpen ? (
-                    <div id="player-save-states" className="mb-3 max-h-[35vh] w-[min(30rem,100%)] overflow-y-auto rounded-lg border border-white/15 bg-elevated/95 p-4 shadow-xl backdrop-blur-xl">
-                        <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold text-white">Load a save state</h2><button type="button" onClick={() => setStatesOpen(false)} aria-label="Close save states" className="flex h-8 w-8 items-center justify-center rounded-sm text-white/60 hover:bg-white/10">×</button></div>
-                        {states.length === 0 ? <p className="px-1 py-5 text-sm text-white/50">Your next adventure starts here. Use Save State to keep a moment from this game.</p> : (
+            {statesOpen ? (
+                <div className="absolute inset-0 z-[10003] flex items-center justify-center bg-black/60 p-4"
+                    onClick={(event) => { if (event.target === event.currentTarget) setStatesOpen(false); }}>
+                    <div id="player-save-states" role="dialog" aria-modal="true" aria-labelledby="player-save-states-title"
+                        onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setStatesOpen(false); } }}
+                        className="max-h-[70vh] w-[min(30rem,100%)] overflow-y-auto rounded-lg border border-white/15 bg-elevated/95 p-4 shadow-xl backdrop-blur-xl">
+                        <div className="mb-3 flex items-center justify-between"><h2 id="player-save-states-title" className="text-sm font-semibold text-white">Load a save state</h2><button type="button" onClick={() => setStatesOpen(false)} aria-label="Close save states" className="flex h-11 w-11 items-center justify-center rounded-sm text-white/60 hover:bg-white/10">×</button></div>
+                        {states.length === 0 ? <p className="px-1 py-5 text-sm text-white/50">No save states yet. Use Save State to capture one.</p> : (
                             <ul className="space-y-2">
                                 {states.map((item) => (
                                     <li key={item.id}>
@@ -707,26 +744,8 @@ export function Emulator({
                             </ul>
                         )}
                     </div>
-                ) : null}
-                <div className="w-full max-w-3xl rounded-lg border border-white/10 bg-elevated/95 p-3 shadow-2xl backdrop-blur-xl sm:p-4">
-                    <div className="mb-3 flex items-center justify-between gap-4 px-1">
-                        <span className="text-xs font-semibold tracking-tight text-white/80">SaveSlot<span className="ml-2 font-normal text-white/30">/ Player</span></span>
-                        <span className="truncate text-[11px] text-white/40">{state.kind === "booting" ? "Starting your game…" : state.kind === "restoring" ? "Restoring your save…" : stateBusy ? "Saving…" : "Esc to show controls"}</span>
-                    </div>
-                    <div className="flex flex-wrap items-stretch gap-2">
-                        <button type="button" onClick={() => void resumeGame()} disabled={controlsBusy}
-                            className="flex min-h-14 min-w-28 flex-1 items-center justify-center gap-2 rounded-md bg-accent px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-accent/10 transition-colors hover:bg-accent-hover disabled:opacity-40">
-                            <PlayerIcon name="play" />Resume
-                        </button>
-                        {statesSupported ? <>
-                            <button type="button" onClick={() => void saveState()} disabled={controlsBusy} className={controlClass}><PlayerIcon name="save" />Save State</button>
-                            <button type="button" onClick={() => setStatesOpen((open) => !open)} disabled={controlsBusy} aria-expanded={statesOpen} aria-controls="player-save-states" className={controlClass}><PlayerIcon name="load" />Load State</button>
-                        </> : null}
-                        <button type="button" onClick={() => void toggleFullscreen()} className={controlClass}><PlayerIcon name="fullscreen" /><span className="sr-only sm:not-sr-only">Fullscreen</span></button>
-                        <button type="button" onClick={() => void saveAndQuit()} disabled={controlsBusy} className={controlClass}><PlayerIcon name="exit" />{quitting ? "Saving…" : "Save & Quit"}</button>
-                    </div>
                 </div>
-            </div>
+            ) : null}
         </>
     );
 }

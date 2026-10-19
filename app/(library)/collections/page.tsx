@@ -11,7 +11,7 @@ export const metadata = { title: "Collections" };
 
 export default function CollectionsPage() {
     return <div className="page-shell">
-        <header className="page-header"><div><p className="eyebrow">A place for every adventure</p><h1>Collections</h1><p className="mt-2 text-sm text-muted">Your library, organized around the way you play.</p></div>
+        <header className="page-header"><div><h1>Collections</h1><p className="mt-2 text-sm text-muted">Views built from play status and favorites.</p></div>
             <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-muted">{SMART_COLLECTIONS.length} smart collections</span>
         </header>
         <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

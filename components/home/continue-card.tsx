@@ -26,7 +26,7 @@ export function ContinueCard({ game, screenshotUrl = null }: { game: GameListIte
                 <p className="mt-1 truncate text-[11px] text-muted">{game.platformName}</p>
                 <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2.5 text-[10px] text-muted">
                     <span className="flex items-center gap-1.5"><ClockIcon />{formatPlaytime(game.totalPlaySeconds)}</span>
-                    {game.present ? <span>{game.lastPlayedAt ? formatRelative(game.lastPlayedAt) : "Ready to play"}</span> : <span className="text-warning">File missing</span>}
+                    {game.present ? <span>{game.lastPlayedAt ? formatRelative(game.lastPlayedAt) : "Not played yet"}</span> : <span className="text-warning">File missing</span>}
                 </div>
             </div>
         </li>

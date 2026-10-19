@@ -21,6 +21,9 @@ interface GameManagerLike {
 
 interface EmulatorLike {
   gameManager?: GameManagerLike;
+  touch?: boolean;
+  toggleVirtualGamepad?: (show: boolean) => void;
+  getSettingValue?: (key: string) => string | undefined;
   paused: boolean;
   pause(): void;
   play(): void;

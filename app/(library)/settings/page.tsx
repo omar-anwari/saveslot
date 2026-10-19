@@ -73,71 +73,80 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <main className="page-shell">
             <header className="page-header">
                 <div>
-                    <p className="eyebrow">MAKE YOURSELF AT HOME</p>
-                    <h1 className="mt-2 text-3xl font-semibold tracking-tight">Settings</h1>
-                    <p className="mt-3 text-sm text-muted">Your library, your setup. Everything in one place.</p>
+                    <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+                    <p className="mt-3 text-sm text-muted">Server configuration, library paths, and diagnostics.</p>
                 </div>
                 <span className="inline-flex items-center gap-2 self-start rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-muted"><span className={`h-1.5 w-1.5 rounded-full ${report.status === "ok" ? "bg-success" : "bg-warning"}`} />SaveSlot {packageJson.version}</span>
             </header>
             <SettingsTabs initialTab={["general", "appearance", "library", "saves", "emulator", "controllers"].includes(requestedTab ?? "") ? requestedTab! : "general"} tabs={[
-                { id: "general", label: "General", content: <>
-                    <SettingsPanel title="Your SaveSlot" description="A home for your games, ready whenever you are.">
-                        <SettingsRows rows={[
-                            ["Application", env.APP_NAME],
-                            ["Version", packageJson.version],
-                            ["Systems enabled", `${enabled.length} of ${rows.length}`],
-                            ["Password protection", env.appPasswordEnabled ? "Enabled" : "Not enabled"],
-                        ]} />
-                    </SettingsPanel>
-                    <DiagnosticsPanel appVersion={packageJson.version} initialReport={report} />
-                </> },
-                { id: "appearance", label: "Appearance", content: <SettingsPanel title="A little less light. A lot more focus." description="SaveSlot uses a dark theme with a violet accent, keeping your game artwork in the spotlight.">
-                    <div className="max-w-md overflow-hidden rounded-lg border border-accent/40 bg-bg">
-                        <div className="flex h-44 gap-4 p-4" aria-hidden="true">
-                            <div className="w-16 rounded-sm border border-line bg-elevated p-2"><div className="mb-5 h-2 w-7 rounded bg-accent" /><div className="h-4 rounded bg-accent-soft" /><div className="mt-2 h-4 rounded bg-surface" /><div className="mt-2 h-4 rounded bg-surface" /></div>
-                            <div className="flex-1"><div className="h-5 rounded bg-surface" /><div className="mt-3 h-14 rounded-sm bg-accent/15" /><div className="mt-3 grid grid-cols-3 gap-2"><div className="h-12 rounded-sm bg-surface" /><div className="h-12 rounded-sm bg-surface-active" /><div className="h-12 rounded-sm bg-surface" /></div></div>
+                {
+                    id: "general", label: "General", content: <>
+                        <SettingsPanel title="Overview" description="Application name, version, and system status.">
+                            <SettingsRows rows={[
+                                ["Application", env.APP_NAME],
+                                ["Version", packageJson.version],
+                                ["Systems enabled", `${enabled.length} of ${rows.length}`],
+                                ["Password protection", env.appPasswordEnabled ? "Enabled" : "Not enabled"],
+                            ]} />
+                        </SettingsPanel>
+                        <DiagnosticsPanel appVersion={packageJson.version} initialReport={report} />
+                    </>
+                },
+                {
+                    id: "appearance", label: "Appearance", content: <SettingsPanel title="Theme" description="SaveSlot uses a dark theme with a violet accent.">
+                        <div className="max-w-md overflow-hidden rounded-lg border border-accent/40 bg-bg">
+                            <div className="flex h-44 gap-4 p-4" aria-hidden="true">
+                                <div className="w-16 rounded-sm border border-line bg-elevated p-2"><div className="mb-5 h-2 w-7 rounded bg-accent" /><div className="h-4 rounded bg-accent-soft" /><div className="mt-2 h-4 rounded bg-surface" /><div className="mt-2 h-4 rounded bg-surface" /></div>
+                                <div className="flex-1"><div className="h-5 rounded bg-surface" /><div className="mt-3 h-14 rounded-sm bg-accent/15" /><div className="mt-3 grid grid-cols-3 gap-2"><div className="h-12 rounded-sm bg-surface" /><div className="h-12 rounded-sm bg-surface-active" /><div className="h-12 rounded-sm bg-surface" /></div></div>
+                            </div>
+                            <div className="flex items-center justify-between border-t border-line bg-surface px-5 py-4 text-sm"><span className="font-medium">SaveSlot Dark</span><span className="text-accent-hover">✓ Active theme</span></div>
                         </div>
-                        <div className="flex items-center justify-between border-t border-line bg-surface px-5 py-4 text-sm"><span className="font-medium">SaveSlot Dark</span><span className="text-accent-hover">✓ Active theme</span></div>
-                    </div>
-                    <p className="mt-5 text-sm text-muted">Animations follow your device’s reduced motion preference.</p>
-                </SettingsPanel> },
-                { id: "library", label: "Library", content: <>
-                    <ScanPanel platforms={enabled} initialScan={latestRun ? serializeScanRun(latestRun) : null} initialEvents={initialEvents} />
-                    <SettingsPanel title="Library locations" description="These locations are managed in your server configuration (.env.local).">
+                        <p className="mt-5 text-sm text-muted">Animations follow your device’s reduced motion preference.</p>
+                    </SettingsPanel>
+                },
+                {
+                    id: "library", label: "Library", content: <>
+                        <ScanPanel platforms={enabled} initialScan={latestRun ? serializeScanRun(latestRun) : null} initialEvents={initialEvents} />
+                        <SettingsPanel title="Library locations" description="These locations are managed in your server configuration (.env.local).">
+                            <SettingsRows rows={[
+                                ["ROM library", <code key="rom" className="text-xs">{env.ROM_LIBRARY_PATH}</code>],
+                                ["Application data", <code key="data" className="text-xs">{env.APP_DATA_PATH}</code>],
+                                ["File verification", env.scanHashAlgorithms.join(", ").toUpperCase()],
+                            ]} />
+                        </SettingsPanel>
+                        <ProvidersPanel />
+                    </>
+                },
+                {
+                    id: "saves", label: "Saves", content: <SettingsPanel title="Saves and save states" description="In-game saves sync while you play. Save states capture an exact moment so you can return to it later.">
                         <SettingsRows rows={[
-                            ["ROM library", <code key="rom" className="text-xs">{env.ROM_LIBRARY_PATH}</code>],
-                            ["Application data", <code key="data" className="text-xs">{env.APP_DATA_PATH}</code>],
-                            ["File verification", env.scanHashAlgorithms.join(", ").toUpperCase()],
+                            ["In-game save sync", `Every ${env.EMULATORJS_FIXED_SAVE_INTERVAL_MS / 1000} seconds while playing`],
+                            ["In-game save history", `${env.SAVE_HISTORY_LIMIT} versions per game and core`],
+                            ["Save state history", `${env.STATE_HISTORY_LIMIT} per game, core, and save type`],
+                            ["Save & Quit", "Creates an automatic save state on supported systems"],
                         ]} />
+                        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6"><p className="text-xs text-subtle">Retention and sync frequency are managed in server configuration.</p><Link href="/saves" className="button-primary">Browse your saves <span aria-hidden="true">↗</span></Link></div>
                     </SettingsPanel>
-                    <ProvidersPanel />
-                </> },
-                { id: "saves", label: "Saves", content: <SettingsPanel title="Keep your progress close" description="In-game saves sync while you play. Save states capture an exact moment so you can return to it later.">
-                    <SettingsRows rows={[
-                        ["In-game save sync", `Every ${env.EMULATORJS_FIXED_SAVE_INTERVAL_MS / 1000} seconds while playing`],
-                        ["In-game save history", `${env.SAVE_HISTORY_LIMIT} versions per game and core`],
-                        ["Save state history", `${env.STATE_HISTORY_LIMIT} per game, core, and save type`],
-                        ["Save & Quit", "Creates an automatic save state on supported systems"],
-                    ]} />
-                    <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6"><p className="text-xs text-subtle">Retention and sync frequency are managed in server configuration.</p><Link href="/saves" className="button-primary">Browse your saves <span aria-hidden="true">↗</span></Link></div>
-                </SettingsPanel> },
-                { id: "emulator", label: "Emulator", content: <>
-                    <SettingsPanel title="Made for the game" description="Video, audio, and button mappings are available from the emulator menu while playing. Available options depend on the system.">
-                        <div className="grid gap-4 sm:grid-cols-3">{[
-                            ["Video", "Adjust the display and available graphics options."],
-                            ["Audio", "Set your volume using the player’s audio controls."],
-                            ["Controls", "Configure keyboard and connected controller inputs."],
-                        ].map(([title, description]) => <div key={title} className="rounded-md border border-line bg-elevated p-5"><h3 className="text-sm font-medium">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{description}</p></div>)}</div>
-                        <Link href="/library" className="button-secondary mt-6">Choose a game <span aria-hidden="true">→</span></Link>
-                    </SettingsPanel>
-                    <SettingsPanel title="Emulator configuration" description="Current server settings for the browser player.">
-                        <SettingsRows rows={[
-                            ["Engine", `EmulatorJS${env.EMULATORJS_VERSION ? ` ${env.EMULATORJS_VERSION}` : ""}`],
-                            ["Threading", env.EMULATORJS_THREADS === "auto" ? "Automatic" : env.EMULATORJS_THREADS === "on" ? "Enabled" : "Disabled"],
-                            ["Player overlay", "Hides after 3 seconds of inactivity"],
-                        ]} />
-                    </SettingsPanel>
-                </> },
+                },
+                {
+                    id: "emulator", label: "Emulator", content: <>
+                        <SettingsPanel title="In-game options" description="Video, audio, and button mappings are available from the emulator menu while playing. Available options depend on the system.">
+                            <div className="grid gap-4 sm:grid-cols-3">{[
+                                ["Video", "Adjust the display and available graphics options."],
+                                ["Audio", "Set your volume using the player’s audio controls."],
+                                ["Controls", "Configure keyboard and connected controller inputs."],
+                            ].map(([title, description]) => <div key={title} className="rounded-md border border-line bg-elevated p-5"><h3 className="text-sm font-medium">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{description}</p></div>)}</div>
+                            <Link href="/library" className="button-secondary mt-6">Choose a game <span aria-hidden="true">→</span></Link>
+                        </SettingsPanel>
+                        <SettingsPanel title="Emulator configuration" description="Current server settings for the browser player.">
+                            <SettingsRows rows={[
+                                ["Engine", `EmulatorJS${env.EMULATORJS_VERSION ? ` ${env.EMULATORJS_VERSION}` : ""}`],
+                                ["Threading", env.EMULATORJS_THREADS === "auto" ? "Automatic" : env.EMULATORJS_THREADS === "on" ? "Enabled" : "Disabled"],
+                                ["Player overlay", "Hides after 3 seconds of inactivity"],
+                            ]} />
+                        </SettingsPanel>
+                    </>
+                },
                 { id: "controllers", label: "Controllers", content: <ControllersPanel /> },
             ]} />
         </main>

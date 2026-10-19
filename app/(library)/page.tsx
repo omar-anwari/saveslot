@@ -45,12 +45,11 @@ export default async function HomePage() {
 
     return <div className="page-shell">
         <header className="page-header">
-            <div><p className="eyebrow">Your next adventure awaits</p><h1>Welcome home</h1></div>
+            <div><h1>Home</h1></div>
             <Link href="/library" className="section-link"><LibraryIcon />{total.toLocaleString()} games<span className="mx-1 text-subtle">/</span>{systems.length} systems<ArrowRightIcon /></Link>
         </header>
         {featured ? <ResumeHero game={featured} hasSave={hasSave} screenshotUrl={screenshots.get(featured.slug)} /> : <div className="empty-state">
             <span className="mb-5 rounded-lg bg-accent-soft p-4 text-[#b4a4ff]"><LibraryIcon /></span>
-            <h2 className="text-xl font-semibold">Every adventure starts somewhere</h2>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">Add your games to your library folder, then scan your library to bring them here.</p>
             <Link href="/settings?tab=library" className="button-primary mt-6">Set up your library<ArrowRightIcon /></Link>
         </div>}

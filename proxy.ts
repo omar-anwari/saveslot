@@ -12,12 +12,16 @@ function envelope(code: string, message: string, status: number) {
 }
 
 export function proxy(request: NextRequest) {
+    const host = request.headers.get("host");
+    const requestOrigin = host === null || host.length === 0
+        ? request.nextUrl.origin
+        : `${request.nextUrl.protocol}//${host}`;
     if (
         isCrossSiteWrite({
             method: request.method,
             secFetchSite: request.headers.get("sec-fetch-site"),
             origin: request.headers.get("origin"),
-            requestOrigin: request.nextUrl.origin,
+            requestOrigin,
             appUrl: process.env.APP_URL,
         })
     ) {

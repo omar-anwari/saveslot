@@ -60,7 +60,7 @@ export async function LibraryBrowser({ params, favoritesOnly = false }: { params
     return (
         <div className="page-shell">
             <header className="page-header">
-                <div><p className="eyebrow">Your collection</p><h1>{favoritesOnly ? "Favorites" : "Library"}</h1><p className="mt-2 text-sm text-muted">{favoritesOnly ? "The games you always come back to." : "Every game. One place. Yours to explore."}</p></div>
+                <div><h1>{favoritesOnly ? "Favorites" : "Library"}</h1><p className="mt-2 text-sm text-muted">{favoritesOnly ? "Games you have marked as a favorite." : "Every game in your library."}</p></div>
                 <Link href={favoritesOnly ? "/library" : "/settings?tab=library"} className="button-secondary">{favoritesOnly ? "Browse library" : "Add games"}<BrowseIcon name="arrow" width="15" height="15" /></Link>
             </header>
             <div className="mb-5 flex items-center gap-3"><h2 className="text-base font-medium">{favoritesOnly ? "Your favorites" : "All games"}</h2><span className="rounded-md border border-line bg-surface px-2 py-0.5 text-xs tabular-nums text-muted">{result.total.toLocaleString()}</span></div>
@@ -68,9 +68,9 @@ export async function LibraryBrowser({ params, favoritesOnly = false }: { params
             {result.games.length === 0 ? (
                 <div className="empty-state mt-8">
                     <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-lg border border-line bg-surface text-accent-hover"><BrowseIcon name={favoritesOnly ? "heart" : "grid"} width="25" height="25" /></span>
-                    <h2 className="text-lg font-medium">{filtered ? "No games found" : favoritesOnly ? "Keep your favorites close" : "Your next adventure starts here"}</h2>
-                    <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">{filtered ? "Try another search or clear your filters to see more of your library." : favoritesOnly ? "Tap the heart on any game to give it a place in your favorites." : "Add your game folder in Settings, then scan it to build your library."}</p>
-                    <Link href={filtered ? basePath : favoritesOnly ? "/library" : "/settings?tab=library"} className="button-primary mt-6">{filtered ? "Clear filters" : favoritesOnly ? "Explore your library" : "Add your games"}<BrowseIcon name="arrow" width="15" height="15" /></Link>
+                    <h2 className="text-lg font-medium">{filtered ? "No games found" : favoritesOnly ? "No favorites yet" : "No games in your library"}</h2>
+                    <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">{filtered ? "Try another search or clear your filters to see more of your library." : favoritesOnly ? "Select the heart on any game to add it here." : "Add your game folder in Settings, then scan it to build your library."}</p>
+                    <Link href={filtered ? basePath : favoritesOnly ? "/library" : "/settings?tab=library"} className="button-primary mt-6">{filtered ? "Clear filters" : favoritesOnly ? "Go to library" : "Add your games"}<BrowseIcon name="arrow" width="15" height="15" /></Link>
                 </div>
             ) : <div className="mt-6">{view === "list" ? <GameList games={result.games} /> : <ul className="game-grid">{result.games.map((game) => <GameCard key={game.slug} {...game} hasSave={saves.has(game.slug)} />)}</ul>}</div>}
             {result.pageCount > 1 ? <nav aria-label="Pagination" className="mt-10 flex items-center justify-between gap-3 border-t border-line pt-6 text-sm">

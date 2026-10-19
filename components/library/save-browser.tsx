@@ -83,7 +83,7 @@ export function SaveBrowser({
         return (
             <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-line-strong bg-elevated px-6 py-12 text-center">
                 <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-lg bg-accent-soft text-[#aa96ff]"><DetailIcon name="save" width={25} height={25} /></span>
-                <h2 className="text-lg font-medium">Your next adventure starts here</h2>
+                <h2 className="text-lg font-medium">No saves yet</h2>
                 <p className="mt-2 max-w-sm text-sm leading-6 text-muted">Play a game to create an in-game save, or capture a save state from the player menu.</p>
                 {playable ? <Link href={`/player/${slug}`} className="mt-5 flex items-center gap-2 rounded-sm bg-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-hover"><DetailIcon name="play" width={16} height={16} fill="currentColor" />Play game</Link> : null}
             </div>
