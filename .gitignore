@@ -17,6 +17,7 @@ node_modules
 /playwright-report/
 
 *.tsbuildinfo
+next-env.d.ts
 
 *.gb
 *.gba
