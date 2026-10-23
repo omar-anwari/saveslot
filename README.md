@@ -76,6 +76,7 @@ download:
 
 ```bash
 pnpm run emulatorjs:sync    # ~300 MB
+pnpm exec playwright install chromium    # only needed to run the browser tests
 ```
 
 Then open http://localhost:3000.
@@ -164,7 +165,7 @@ pnpm start
 ```
 
 Uses the same `.env.local` and the same data directory. Run `pnpm test:all`
-first — it chains lint, typecheck, tests and build.
+first — it chains lint, typecheck, unit tests, browser tests and build.
 
 ## Docker
 
@@ -177,29 +178,35 @@ stage.
 
 ## Backup and restore
 
-**Not implemented as a command.** `pnpm db:backup` does not exist yet.
+```bash
+pnpm db:backup                    # writes to <APP_DATA_PATH>/backups/
+pnpm db:backup --to /Volumes/USB  # somewhere else
+pnpm db:backup --artwork          # also include cached cover art
+```
 
-To back up by hand, do **not** just copy `app.sqlite`. The database runs in
-WAL mode, so recent commits live in `app.sqlite-wal` until a checkpoint folds
-them in — and a checkpoint may not have happened for days. Copying the main
-file alone silently produces a backup that is missing your latest work, with
-no error to tell you.
+Each run creates `saveslot-backup-<timestamp>/` containing:
 
-Use SQLite's own backup, which reads through the WAL:
+- `app.sqlite` — the catalogue, copied with SQLite's own backup API, so
+  changes still in the write-ahead log are included
+- `saves/` and `states/` — your progress
+- `manifest.json` — what was copied and when
 
-````bash
-sqlite3 dev-data/app.sqlite ".backup 'backup/app.sqlite'"
+`.env.local` is never included; it holds your password, session secret and
+provider credentials. The default destination sits inside your data
+directory, so copy the backup to another disk if you want it to survive
+that disk failing.
 
-Or, with the server stopped, copy all three files together —
-app.sqlite, app.sqlite-wal and app.sqlite-shm.
+### Restoring
 
-Then copy:
+There is no restore command. With the server stopped:
 
-- backup/app.sqlite — the catalogue
-- `dev-data/saves/` and `dev-data/states/` — your progress
-- `.env.local` — configuration, but note it may contain credentials
-
-`dev-data/artwork/` can be regenerated and does not need backing up.
+1. Delete `app.sqlite-wal` and `app.sqlite-shm` next to your current
+   database. If you skip this, SQLite will replay the old write-ahead log
+   on top of the restored file.
+2. Copy the backup's `app.sqlite` to your `DATABASE_URL` path.
+3. Copy the backup's `saves/` and `states/` into `APP_DATA_PATH`,
+   replacing the existing folders.
+4. Start the server and run `pnpm run doctor`.
 
 ## Updating EmulatorJS
 
